@@ -876,6 +876,9 @@ section.sec.alt{background:var(--bg)}
 .modal{background:var(--card);border-radius:14px;max-width:760px;width:100%;box-shadow:var(--sh2);position:relative;animation:pop .2s}
 .modal.lg{max-width:1000px}
 .modal.sm{max-width:480px}
+.pop-fig{margin:0 0 12px;display:flex;justify-content:center}
+.pop-fig a{display:block;max-width:100%}
+.pop-img{display:block;max-width:100%;width:auto;height:auto;max-height:max(220px,min(calc(100vh - 300px),680px));object-fit:contain;border-radius:10px;margin:0 auto}
 .modal-h{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);gap:12px}
 .modal-h h2{margin:0;font-size:18px}
 .modal-x{border:0;background:var(--bg);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px;flex:none}

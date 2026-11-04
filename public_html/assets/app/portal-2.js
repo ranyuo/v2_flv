@@ -1510,8 +1510,8 @@ function maybePopup() {
   const p = DB.config.popup; if (!p.activo || PREVIEW) return;
   const today = new Date().toISOString().slice(0, 10); if ((p.inicio && today < p.inicio) || (p.fin && today > p.fin)) return;
   try { if (sessionStorage.getItem('popup_seen')) return; sessionStorage.setItem('popup_seen', '1'); } catch (e) { }
-  const m = modal({ title: esc(p.titulo), size: 'sm', body: `${p.imagen ? `<img src="${img(p.imagen)}" alt="" style="border-radius:10px;margin-bottom:12px;aspect-ratio:16/10;object-fit:cover;width:100%">` : ''}<p>${esc(p.texto)}</p>`, foot: p.enlace ? `<a class="btn gold" ${linkAttrs(p.enlace)} data-go>${esc(p.boton || 'Ver más')}</a>` : '' });
-  const g = $('[data-go]', m.el); if (g) g.addEventListener('click', () => m.close());
+  const m = modal({ title: esc(p.titulo), size: 'sm', body: `${p.imagen ? `<figure class="pop-fig">${p.enlace ? `<a ${linkAttrs(p.enlace)} data-go>` : ''}<img class="pop-img" src="${img(p.imagen)}" alt="${esc(p.titulo)}">${p.enlace ? '</a>' : ''}</figure>` : ''}${p.texto ? `<p>${esc(p.texto)}</p>` : ''}`, foot: p.enlace ? `<a class="btn gold" ${linkAttrs(p.enlace)} data-go>${esc(p.boton || 'Ver más')}</a>` : '' });
+  $$('[data-go]', m.el).forEach(g => g.addEventListener('click', () => m.close()));
 }
 
 /* ==== admin1.js ==== */
@@ -2275,7 +2275,7 @@ CUSTOM.licenciamiento = () => singletonForm({
 });
 CUSTOM.popup = () => singletonForm({
   title: 'Ventana emergente (comunicado)', icon: 'bell', tabs: portadaTabs('p'), crumbs: [['Portada', '#/admin/slides'], ['Ventana emergente']], get: () => DB.config.popup,
-  fields: [{ n: 'activo', l: 'Mostrar ventana emergente en la portada', t: 'checkbox', full: true }, { n: 'titulo', l: 'Título', req: true, full: true }, { n: 'texto', l: 'Texto', t: 'textarea', full: true }, { n: 'boton', l: 'Texto del botón' }, { n: 'enlace', l: 'Enlace', ph: '#/admision' }, { n: 'inicio', l: 'Mostrar desde', t: 'date' }, { n: 'fin', l: 'Mostrar hasta', t: 'date' }, { n: 'imagen', l: 'Imagen', t: 'image', full: true }],
+  fields: [{ n: 'activo', l: 'Mostrar ventana emergente en la portada', t: 'checkbox', full: true }, { n: 'titulo', l: 'Título', req: true, full: true }, { n: 'texto', l: 'Texto', t: 'textarea', full: true }, { n: 'boton', l: 'Texto del botón' }, { n: 'enlace', l: 'Enlace', ph: '#/admision' }, { n: 'inicio', l: 'Mostrar desde', t: 'date' }, { n: 'fin', l: 'Mostrar hasta', t: 'date' }, { n: 'imagen', l: 'Imagen', t: 'image', full: true, hint: 'Se muestra completa, sin recortes, y se ajusta al tamaño de la pantalla. Sirven afiches verticales, cuadrados u horizontales.' }],
   onSave: (w, er) => { if (w.inicio && w.fin && w.fin < w.inicio) er.fin = 'La fecha final debe ser posterior a la inicial.'; if (Object.keys(er).length) return; DB.config.popup = w; try { sessionStorage.removeItem('popup_seen'); } catch (e) { } },
 });
 function quickAccessSummary(accesses) {
