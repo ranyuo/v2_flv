@@ -30,6 +30,26 @@ final class PortalRules
     public static function apply(array $old,array &$new,array $user): void
     {
         self::settings($old,$new);
+        foreach (['paginas', 'programas'] as $collection) foreach (self::alive($new[$collection] ?? []) as $row) {
+            if (!self::changed($old[$collection] ?? [], $row)) continue;
+            $gallery = $row['galeria'] ?? [];
+            if (!is_array($gallery) || !array_is_list($gallery) || count($gallery) > 12) throw new PortalError(422, 'La galería admite hasta doce fotografías adicionales.');
+            foreach ($gallery as $item) {
+                if (!is_array($item) || !is_string($item['src'] ?? null) || $item['src'] === '' || !self::safeImage($item['src'])
+                    || !is_string($item['alt'] ?? null) || !preg_match('//u', $item['alt']) || preg_match_all('/./us', $item['alt']) > 240) throw new PortalError(422, 'Cada imagen de la galería debe tener un archivo válido y una descripción de hasta 240 caracteres.');
+            }
+            if (!empty($row['organigrama']) && !self::safeImage($row['organigrama'])) throw new PortalError(422, 'La imagen del organigrama no es válida.');
+        }
+        foreach (self::alive($new['jerarquica'] ?? []) as $entry) {
+            $seen = [$entry['id']]; $parent = $entry['superiorId'] ?? '';
+            while ($parent !== '' && $parent !== null) {
+                if (!is_string($parent) || in_array($parent, $seen, true)) throw new PortalError(422, 'Las dependencias del organigrama no pueden formar ciclos.');
+                $seen[] = $parent;
+                $linked = PortalPolicy::find($new['jerarquica'], 'id', $parent);
+                if (!$linked || ($linked['deleted'] ?? false)) throw new PortalError(422, 'La dependencia jerárquica debe corresponder a un cargo existente.');
+                $parent = $linked['superiorId'] ?? '';
+            }
+        }
         foreach($new['slides'] as $slide)if(!($slide['deleted']??false)&&self::changed($old['slides'],$slide)){
             if(!self::safeLink($slide['enlace']??''))throw new PortalError(422,'El enlace del carrusel debe ser una ruta interna, ext:id o una URL http/https válida.');
             if(!empty($slide['boton'])&&empty($slide['enlace']))throw new PortalError(422,'Indica el enlace del botón del carrusel.');
@@ -82,7 +102,7 @@ final class PortalRules
             if(!self::date($r['fecha']??null))throw new PortalError(422,'La fecha del certificado no es válida.');
         }
         foreach($new['paginas'] as &$r){$prior=PortalPolicy::find($old['paginas'],'id',$r['id']);if(!$prior){$r['versiones']=[];continue;}if(!self::changed($old['paginas'],$r))continue;
-            $fields=['titulo','contenido','imagen','mensaje','estado'];$edited=false;foreach($fields as $field)if(!PortalPolicy::equal($r[$field]??null,$prior[$field]??null))$edited=true;
+            $fields=['titulo','contenido','imagen','galeria','organigrama','mensaje','estado'];$edited=false;foreach($fields as $field)if(!PortalPolicy::equal($r[$field]??null,$prior[$field]??null))$edited=true;
             $r['versiones']=$prior['versiones']??[];if($edited)$r['versiones']=array_slice([[...array_intersect_key($prior,array_flip($fields)),'fecha'=>$prior['modEn']??date(DATE_ATOM),'por'=>$prior['modPor']??$user['usuario']],...$r['versiones']],0,10);
         }unset($r);
         // Protege las referencias incluso cuando se usa directamente la API.

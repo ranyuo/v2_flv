@@ -46,6 +46,15 @@ Sube `portal-private/` y `public_html/` encima de las carpetas actuales y acepta
 
 El sistema es una copia del portal de Nasca (`ranyuo/claudenasca`, commit `bf8264c`) adaptada con la información pública de https://iestpflv.edu.pe/, consultada el 30 de octubre de 2026. Las imágenes y los documentos se sirven desde `public_html/assets/flv/`, no desde la web original.
 
+### Galerías, organigrama y plana jerárquica
+
+- **Galerías:** en *Páginas institucionales* y *Programas de estudio* se pueden agregar hasta 12 fotografías adicionales, con descripción, orden y opción de quitarlas. En la web se recorren con *Anterior / Siguiente* o con las miniaturas y se pueden ampliar. Si una página solo tiene su imagen principal, se muestra como hasta ahora. En los programas, la galería acompaña a *Perfil de egreso* y *Campo laboral* (que ya no aparece plegado).
+- **Historial de versiones:** guarda y restaura también la galería y el organigrama. El historial ya no se envía a la web pública.
+- **Organización institucional:** se puede cargar la imagen del organigrama aprobado en esa página. Como alternativa, en *Plana jerárquica → Depende jerárquicamente de* se indica la dependencia de cada cargo y la web dibuja el árbol; el servidor rechaza ciclos y cargos inexistentes. Sin ninguna de las dos opciones se conserva la estructura actual.
+- **Reconocimientos:** se muestra la foto de cada registro y puede ampliarse.
+- **Plana jerárquica:** una ficha por persona con todos sus cargos y coordinaciones; quien coordina un programa y además tiene un cargo ya no aparece dos veces.
+- **Pie de página:** se retiró la suscripción al boletín (no enviaba correos). El logotipo se muestra con su proporción original y sin animación.
+
 ## Datos que debe confirmar la institución
 
 - RUC, código modular, horario de atención y redes sociales.

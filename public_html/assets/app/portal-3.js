@@ -1072,11 +1072,17 @@ R('nosotros/plana-docente', (path, q) => {
 });
 R('nosotros/plana-jerarquica', path => {
   const pg0 = page('jerarquica'); if (!pg0 || !isPub(pg0)) return notFound(path);
-  const js = sortO(P('jerarquica').filter(isPub)).map(j => ({ j, p: persona(j.personaId) })).filter(x => x.p);
-  const d = js.find(x => x.j.esDirector); const ord = (d ? [d] : []).concat(js.filter(x => !x.j.esDirector));
-  const coords = progs().filter(pp => pp.coordinadorId).map(pp => ({ pp, p: persona(pp.coordinadorId) })).filter(x => x.p);
+  // Una ficha por persona: sus cargos y coordinaciones se reúnen sin perder ninguno (adaptado de v2_chincha).
+  const key = t => normTitle(String(t || '').replace(/\(a\)/gi, ''));
+  const people = new Map();
+  sortO(P('jerarquica').filter(isPub)).forEach(j => { const p = persona(j.personaId); if (!p) return; if (!people.has(p.id)) people.set(p.id, { j, p, cargos: [], progs: [] }); const it = people.get(p.id); if (j.esDirector) it.j = j; if (!it.cargos.some(c => key(c) === key(j.cargo))) it.cargos.push(j.cargo); });
+  const allCoords = progs().filter(pp => pp.coordinadorId).map(pp => ({ pp, p: persona(pp.coordinadorId) })).filter(x => x.p);
+  allCoords.forEach(({ pp, p }) => { const it = people.get(p.id); if (!it) return; it.progs.push(pp); const c = 'Coordinador(a) de ' + pp.nombre; if (!it.cargos.some(x => key(x) === key(c))) it.cargos.push(c); });
+  const js = [...people.values()];
+  const d = js.find(x => x.j.esDirector); const ord = (d ? [d] : []).concat(js.filter(x => x !== d));
+  const coords = allCoords.filter(({ p }) => !people.has(p.id));
   const body = `${pzPlanaTabs('j')}<span class="pz-kick">CONOCE A NUESTRO</span><h1 class="pz-big">EQUIPO DIRECTIVO</h1><p class="lead">${esc(stripTags(pg0.contenido))}</p>
-   <div class="pz-tgrid three">${ord.map(({ j, p }) => tcard(p, j.cargo, `<button class="b2" data-cg="${j.id}">Cargo académico</button>`)).join('')}</div>
+   <div class="pz-tgrid three">${ord.map(({ j, p, cargos, progs: pp }) => tcard(p, cargos.join(' · '), `<button class="b2" data-cg="${j.id}">Cargo académico</button>${pp.length ? `<button class="b2" data-ud="${p.id}" data-prog="${pp[0].id}">Unidades didácticas</button>` : ''}`)).join('')}</div>
    ${d ? `<section class="director" aria-label="Mensaje de la Dirección General" style="margin-top:26px"><img src="${img(d.p.foto)}" alt="Fotografía de ${esc(fullName(d.p))}"><div class="msg"><h2 style="color:#fff;font-size:18px">Mensaje de la Dirección General</h2><blockquote>“${esc(pg0.mensaje)}”</blockquote><strong>${esc(fullName(d.p))}</strong><span>${esc(d.j.cargo)}</span></div></section>` : ''}
    ${coords.length ? `<h2>Coordinadores de programas de estudio</h2><div class="pz-tgrid">${coords.map(({ pp, p }) => tcard(p, 'Coordinador(a) de ' + pp.nombre, `<button class="b2" data-ud="${p.id}" data-prog="${pp.id}">Unidades didácticas</button>`)).join('')}</div>` : ''}`;
   const html = shell(path, { title: 'Plana Jerárquica', desc: stripTags(pg0.contenido), crumbs: [['Nosotros', '#/nosotros/presentacion'], ['Plana Jerárquica']], banner: { title: 'Nosotros', text: 'Conoce nuestra identidad, historia y el compromiso con la formación técnica.' }, side: nosotrosSide('plana-jerarquica') + sidePromo('Trabajo en equipo para una mejor educación técnica'), body });
