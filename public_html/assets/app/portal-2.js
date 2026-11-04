@@ -196,12 +196,18 @@ function themeVars(t) {
   else { const sky = mix(t.blue, '#ffffff', .9); let link = t.blue; for (let k = 0; k < 10 && contrast(link, sky) < 4.6; k++) link = mix(link, '#000000', .1); Object.assign(v, { '--sky': sky, '--hc': t.navy, '--link': link, '--blue-rgb': hexRgb(t.blue).join(','), '--card2': mix(t.blue, '#ffffff', .975), '--bg': mix(t.blue, '#ffffff', .955), '--bg2': mix(t.blue, '#ffffff', .935), '--line': mix(t.navy, '#ffffff', .875), '--line2': mix(t.navy, '#ffffff', .77), '--info': t.blue, '--infobg': mix(t.blue, '#ffffff', .9), '--infoink': mix(t.navy, '#000000', .1) }); }
   return v;
 }
+const DISENOS = [
+  ['clasico', 'Clásico institucional', 'Diseño original del portal: cabecera institucional, carrusel y bloques en tarjetas.'],
+  ['moderno', 'Moderno', 'Portada a pantalla completa, menú flotante con efecto vidrio, tarjetas amplias con esquinas redondeadas y sombras suaves.'],
+  ['editorial', 'Editorial', 'Estilo de revista digital: tipografía grande, líneas finas, fondo claro y la noticia principal destacada en grande.'],
+];
 function applyTheme() {
   if (!DB || !DB.config) return; ensureThemes(); const t = DB.config.temas[DB.config.tema];
   const css = ':root:root{' + Object.entries(themeVars(t)).map(([k, x]) => `${k}:${x}`).join(';') + '}';
   let st = document.getElementById('theme-vars'); if (!st) { st = document.createElement('style'); st.id = 'theme-vars'; document.head.appendChild(st); }
   const key = JSON.stringify(t); if (st.dataset.k !== key) { st.textContent = css; st.dataset.k = key; Object.keys(IMG_CACHE || {}).forEach(k => delete IMG_CACHE[k]); }
   if (t.modo === 'oscuro') document.documentElement.dataset.mode = 'dark'; else delete document.documentElement.dataset.mode;
+  const lay = DB.config.diseno; if (DISENOS.some(d => d[0] === lay) && lay !== 'clasico') document.documentElement.dataset.layout = lay; else delete document.documentElement.dataset.layout;
   TC = { navy: t.navy, navy2: t.navy2, blue: t.blue, gold: t.gold };
   const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = t.navy;
 }
@@ -714,10 +720,10 @@ R('', path => {
   setSEO({ title: '', desc: c.seo.descripcion });
   const blocks = {
     slider: () => { const sl = sortO(P('slides').filter(isPub)); if (!sl.length) return ''; return `<section class="hero" aria-roledescription="carrusel" aria-label="Destacados">${sl.map((s, k) => `<div class="slide ${k ? '' : 'on'}" role="group" aria-roledescription="diapositiva" aria-label="${k + 1} de ${sl.length}">${k ? `<img data-src="${img(s.imagen)}" alt="" decoding="async">` : `<img src="${img(s.imagen)}" alt="" fetchpriority="high">`}<div class="cap"><div class="wrap"><span class="hero-kicker">${ic('grad')} ${esc(inst().nombreCorto)}</span><h2>${esc(s.titulo)}</h2><p>${esc(s.texto)}</p>${s.boton && resolveLink(s.enlace) ? `<a class="btn gold" ${linkAttrs(resolveLink(s.enlace))}>${esc(s.boton)} ${ic('arrow').replace('<svg', '<svg style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"')}</a>` : ''}</div></div></div>`).join('')}${sl.length > 1 ? `<button class="hero-arrow l" data-sl="-1" aria-label="Diapositiva anterior">‹</button><button class="hero-arrow r" data-sl="1" aria-label="Diapositiva siguiente">›</button><div class="hero-dots">${sl.map((_, k) => `<button data-dot="${k}" aria-label="Ir a diapositiva ${k + 1}" aria-current="${k === 0}"></button>`).join('')}</div>` : ''}</section>`; },
-    accesos: () => `<section class="wrap quick" aria-label="Accesos rápidos"><div class="grid g4">${h.accesos.map(a => { const u = resolveLink(a.enlace); return u ? `<a ${linkAttrs(u)}><span class="ic">${ic(a.icono)}</span><span><strong>${esc(a.titulo)}</strong><small>${esc(a.texto)}</small></span></a>` : ''; }).join('')}</div></section>`,
+    accesos: () => { const qs = h.accesos.map(a => { const u = resolveLink(a.enlace); return u ? `<a ${linkAttrs(u)}><span class="ic">${ic(a.icono)}</span><span><strong>${esc(a.titulo)}</strong><small>${esc(a.texto)}</small></span></a>` : ''; }).filter(Boolean); return `<section class="wrap quick" aria-label="Accesos rápidos"><div class="grid ${qs.length > 4 ? 'g3 q-many' : 'g4'}">${qs.join('')}</div></section>`; },
     bienvenida: () => { const pr = page('presentacion'); const dir = persona((P('jerarquica').find(j => j.esDirector) || {}).personaId); if (!pr || !isPub(pr)) return ''; const ps = (pr.contenido.match(/<p>[\s\S]*?<\/p>/g) || []).slice(0, 2).join(''); return `<section class="sec"><div class="wrap welcome"><img src="${img(dir && dir.foto)}" alt="Fotografía de ${esc(fullName(dir))}" loading="lazy"><div><div class="sec-h" style="text-align:left;margin:0 0 10px"><span class="kicker">Bienvenida</span><h2>Mensaje de la Dirección General</h2></div><div class="prose">${sanitize(ps)}</div><p><strong>${esc(fullName(dir))}</strong><br><span style="color:var(--muted)">${esc((P('jerarquica').find(j => j.esDirector) || {}).cargo || '')}</span></p><a class="btn" href="#/nosotros/presentacion">Leer presentación completa</a></div></div></section>`; },
     cifras: () => `<section class="sec stats" aria-label="Cifras institucionales"><div class="wrap grid g4">${h.cifras.map((x, k) => `<div class="stat"><span class="st-ic">${ic(['calendar', 'grad', 'users', 'award', 'star', 'building'][k % 6])}</span><b>${esc(cifra(x.valor))}</b><span>${esc(x.label)}</span><small>Corte: ${esc(x.corte)}</small></div>`).join('')}</div></section>`,
-    programas: () => `<section class="sec alt"><div class="wrap"><div class="sec-h"><span class="kicker">Oferta formativa</span><h2>Programas de estudio</h2><p>Formación profesional técnica de 3 años con título a nombre de la Nación.</p></div><div class="grid g4">${progs().map(p => progCard(p)).join('')}</div></div></section>`,
+    programas: () => `<section class="sec alt"><div class="wrap"><div class="sec-h"><span class="kicker">Oferta formativa</span><h2>Programas de estudio</h2><p>Formación profesional técnica de 3 años con título a nombre de la Nación.</p></div>${progList(progs())}</div></section>`,
     noticias: () => { const ns = pubNews().slice(0, 6); return `<section class="sec"><div class="wrap"><div class="sec-h"><span class="kicker">Actualidad</span><h2>Noticias recientes</h2></div>${ns.length ? `<div class="grid g3">${ns.map(newsCard).join('')}</div><p style="text-align:center;margin-top:22px"><a class="btn sec" href="#/noticias">Ver todas las noticias</a></p>` : emptyMsg('noticias')}</div></section>`; },
     beneficios: () => `<section class="sec alt"><div class="wrap"><div class="sec-h"><span class="kicker">Ventajas</span><h2>¿Por qué estudiar en el ${esc(i.nombreCorto)}?</h2></div><div class="grid g4">${h.beneficios.slice(0, 8).map(b => `<div class="card benefit"><span class="ic">${ic(b.i)}</span><div><h3>${esc(b.t)}</h3><p>${esc(b.d)}</p></div></div>`).join('')}</div></div></section>`,
     jerarquica: () => { const js = sortO(P('jerarquica').filter(isPub)).map(j => ({ j, p: persona(j.personaId) })).filter(x => x.p); return js.length ? `<section class="sec"><div class="wrap"><div class="sec-h"><span class="kicker">Equipo directivo</span><h2>Plana jerárquica</h2></div><div class="people-strip">${js.slice(0, 6).map(({ j, p }) => `<div class="person"><img src="${img(p.foto)}" alt="Fotografía de ${esc(fullName(p))}" loading="lazy"><strong>${esc(fullName(p))}</strong><small>${esc(j.cargo)}</small></div>`).join('')}</div><p style="text-align:center;margin-top:18px"><a class="btn sec" href="#/nosotros/plana-jerarquica">Conocer al equipo</a></p></div></section>` : ''; },
@@ -741,8 +747,14 @@ function cifra(v) {
   return v;
 }
 const progCard = p => `<article class="card pcard"><img src="${img(p.imagen)}" alt="" loading="lazy"><div class="cb"><h3><a href="#/programas/${esc(p.slug)}" style="color:inherit;text-decoration:none">${esc(p.nombre)}</a></h3><p>${esc(p.resumen)}</p><a class="more" href="#/programas/${esc(p.slug)}" aria-label="Ver programa ${esc(p.nombre)}">Ver programa →</a></div></article>`;
+const progView = () => DB.config.home.programasVista === 'grid' ? 'grid' : 'carrusel';
+const progList = ps => progView() === 'carrusel' && ps.length > 1
+  ? `<div class="pcar" data-pcar><button type="button" class="pcar-b prev" data-pcar-b="-1" aria-label="Programas anteriores">‹</button><div class="pcar-t" tabindex="0" role="region" aria-label="Programas de estudio (desplázate para ver más)">${ps.map(p => `<div class="pcar-i">${progCard(p)}</div>`).join('')}</div><button type="button" class="pcar-b next" data-pcar-b="1" aria-label="Programas siguientes">›</button></div>`
+  : `<div class="grid g4">${ps.map(progCard).join('')}</div>`;
+const NEWS_FOTOS = ['imagen', 'foto2', 'foto3', 'foto4', 'foto5'];
+const newsFotos = n => NEWS_FOTOS.map(k => n[k]).filter(Boolean);
 const newsImageFit = n => ['cover','contain'].includes(n.imagenAjuste) ? n.imagenAjuste : /(?:logo|cuadro|resultado|comunicado)/i.test(n.imagen || '') ? 'contain' : 'cover';
-const newsCard = n => `<article class="card ncard"><div class="img"><img src="${img(n.imagen, 'ph:campus:4')}" data-fit="${newsImageFit(n)}" alt="${esc(n.titulo)}" loading="lazy" decoding="async" width="640" height="400">${n.destacada ? '<span class="badge">Destacado</span>' : ''}</div><div class="cb"><div class="meta"><time datetime="${esc(n.fecha)}">${fdate(n.fecha)}</time><span class="badge">${esc(catName(n.categoriaId))}</span></div><h3><a href="#/noticias/${esc(n.slug)}">${esc(n.titulo)}</a></h3><p>${esc(clamp(n.resumen, 140))}</p><a class="more" href="#/noticias/${esc(n.slug)}" aria-label="Ver más: ${esc(n.titulo)}">Ver más →</a></div></article>`;
+const newsCard = n => `<article class="card ncard"><div class="img"><img src="${img(n.imagen, 'ph:campus:4')}" data-fit="${newsImageFit(n)}" alt="${esc(n.titulo)}" loading="lazy" decoding="async" width="640" height="400">${n.destacada ? '<span class="badge">Destacado</span>' : ''}${newsFotos(n).length > 1 ? `<span class="badge nfotos">${ic('image')} ${newsFotos(n).length} fotos</span>` : ''}</div><div class="cb"><div class="meta"><time datetime="${esc(n.fecha)}">${fdate(n.fecha)}</time><span class="badge">${esc(catName(n.categoriaId))}</span></div><h3><a href="#/noticias/${esc(n.slug)}">${esc(n.titulo)}</a></h3><p>${esc(clamp(n.resumen, 140))}</p><a class="more" href="#/noticias/${esc(n.slug)}" aria-label="Ver más: ${esc(n.titulo)}">Ver más →</a></div></article>`;
 const eventCard = e => { const d = new Date(e.fecha); return `<article class="card event"><div class="d"><b>${d.getDate()}</b><small>${MES3[d.getMonth()]} ${d.getFullYear()}</small></div><div><h3>${esc(e.titulo)}</h3><p><time datetime="${esc(e.fecha)}">${pad(d.getHours())}:${pad(d.getMinutes())} h</time> · ${esc(e.lugar)}</p><p>${esc(e.descripcion)}</p></div></article>`; };
 function mineduLinks() {
   return `<div class="minedu-links">${coll('enlaces').filter(l => l.grupo === 'minedu' && ext(l.id)).map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><span class="lg" style="background:${esc(l.color || '#1556b8')}">${esc(l.nombre.split(' ')[0].slice(0, 3).toUpperCase())}</span><span>${esc(l.nombre)}<span class="sr-only"> (se abre en una pestaña nueva)</span></span></a>`).join('')}</div>`;
@@ -891,7 +903,7 @@ function mailOut(para, asunto, cuerpo) {
 }
 
 /* ---------- PROGRAMAS ---------- */
-R('programas', path => shell(path, { title: 'Programas de Estudio', desc: 'Programas de estudio de educación superior tecnológica.', crumbs: [['Programas de Estudio']], banner: { kicker: 'Oferta formativa', title: 'Programas de Estudio', text: 'Elige tu carrera técnica y construye tu futuro profesional.' }, side: null, body: `<h1>Programas de Estudio</h1><p class="lead">Ofrecemos ${progs().length} programas de estudio de 3 años de duración, con título de Profesional Técnico a nombre de la Nación.</p><div class="grid g4">${progs().map(progCard).join('')}</div>` }));
+R('programas', path => shell(path, { title: 'Programas de Estudio', desc: 'Programas de estudio de educación superior tecnológica.', crumbs: [['Programas de Estudio']], banner: { kicker: 'Oferta formativa', title: 'Programas de Estudio', text: 'Elige tu carrera técnica y construye tu futuro profesional.' }, side: null, body: `<h1>Programas de Estudio</h1><p class="lead">Ofrecemos ${progs().length} programas de estudio de 3 años de duración, con título de Profesional Técnico a nombre de la Nación.</p>${progList(progs())}` }));
 R('programas/:slug', (path, q, prm) => {
   const p = progs().find(x => x.slug === prm.slug) || (PREVIEW && PREVIEW.coll === 'programas' && P('programas').find(x => x.slug === prm.slug && x._preview));
   if (!p) return notFound(path);
@@ -1248,15 +1260,26 @@ R('noticias/:slug', (path, q, prm) => {
   const n = P('noticias').find(x => x.slug === prm.slug && newsVisible(x));
   if (!n) return notFound(path);
   const rel = pubNews().filter(x => x.id !== n.id && x.categoriaId === n.categoriaId).slice(0, 3);
+  const fotos = newsFotos(n);
   const url = location.protocol === 'file:' ? 'https://iestpflv.edu.pe/' + location.hash : location.href;
   const body = `<article><header><div class="meta" style="display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13.5px"><time datetime="${esc(n.fecha)}">${fdate(n.fecha, true)}</time><span class="badge">${esc(catName(n.categoriaId))}</span></div><h1>${esc(n.titulo)}</h1><p class="lead">${esc(n.resumen)}</p></header>
-   ${n.video ? `<div style="aspect-ratio:16/9;margin-bottom:16px"><iframe src="${esc(n.video)}" title="Video: ${esc(n.titulo)}" style="width:100%;height:100%;border:0;border-radius:10px" allowfullscreen loading="lazy"></iframe></div>` : `<figure class="figure"><img src="${img(n.imagen, 'ph:campus:4')}" alt="Imagen de la noticia: ${esc(n.titulo)}" data-fit="${newsImageFit(n)}" decoding="async"><figcaption>${esc(n.titulo)}</figcaption></figure>`}
+   ${n.video ? `<div style="aspect-ratio:16/9;margin-bottom:16px"><iframe src="${esc(n.video)}" title="Video: ${esc(n.titulo)}" style="width:100%;height:100%;border:0;border-radius:10px" allowfullscreen loading="lazy"></iframe></div>` : `<figure class="figure"><button type="button" class="ngal-main" aria-label="Ampliar la foto"><img src="${img(n.imagen, 'ph:campus:4')}" alt="Imagen de la noticia: ${esc(n.titulo)}" data-fit="${newsImageFit(n)}" decoding="async"></button><figcaption>${esc(n.titulo)}${fotos.length > 1 ? ` · Foto <span data-gal-n>1</span> de ${fotos.length}` : ''}</figcaption></figure>`}
+   ${fotos.length > 1 ? `<div class="ngal" aria-label="Galería de fotos de la noticia">${fotos.map((f, i) => `<button type="button" class="ngal-t${!n.video && !i ? ' on' : ''}" data-gal-t="${i}" aria-label="Ver foto ${i + 1} de ${fotos.length}"><img src="${img(f)}" alt="" loading="lazy" decoding="async"></button>`).join('')}</div>` : ''}
    <div class="prose">${sanitize(n.contenido)}</div>
    ${(n.adjuntos || []).length ? `<h2>Archivos relacionados</h2><ul>${n.adjuntos.filter(a => a.doc || a.data || a.titulo || a.url).map((a, i) => { const d = a.doc || a; return `<li><a href="#" data-adj="${i}">${esc(a.titulo || d.original || d.nombre)}</a> <small>(${fsize(d.size)})</small></li>`; }).join('')}</ul>` : ''}
    <p style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:18px"><b>Compartir:</b><a class="btn xs ghost" target="_blank" rel="noopener noreferrer" href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}">Facebook</a><a class="btn xs ghost" target="_blank" rel="noopener noreferrer" href="https://wa.me/?text=${encodeURIComponent(n.titulo + ' ' + url)}">WhatsApp</a><a class="btn xs ghost" href="#/noticias">← Volver a noticias</a></p></article>
    ${rel.length ? `<section><h2>Noticias relacionadas</h2><div class="grid g3">${rel.map(newsCard).join('')}</div></section>` : ''}`;
   const html = shell(path, { title: n.titulo, desc: n.resumen, crumbs: [['Noticias', '#/noticias'], [clamp(n.titulo, 50)]], banner: { title: 'Noticias', text: catName(n.categoriaId) }, side: `<section class="side-box"><h2>Últimas noticias</h2><ul>${pubNews().slice(0, 5).map(x => `<li><a href="#/noticias/${esc(x.slug)}">${esc(x.titulo)}</a></li>`).join('')}</ul></section>` + sideLinks(), body, jsonld: [{ '@context': 'https://schema.org', '@type': 'NewsArticle', headline: n.titulo, datePublished: n.fecha, dateModified: n.modEn || n.fecha, description: n.resumen, author: { '@type': 'Organization', name: inst().nombre }, publisher: { '@type': 'Organization', name: inst().nombre } }] });
-  return { html, after: () => $$('[data-adj]').forEach(a => a.onclick = e => { e.preventDefault(); const x = n.adjuntos.filter(a => a.doc || a.data || a.titulo || a.url)[+a.dataset.adj]; openDoc(x.doc || x); }) };
+  return { html, after: () => {
+    $$('[data-adj]').forEach(a => a.onclick = e => { e.preventDefault(); const x = n.adjuntos.filter(a => a.doc || a.data || a.titulo || a.url)[+a.dataset.adj]; openDoc(x.doc || x); });
+    const main = $('.ngal-main'); let cur = 0;
+    if (main && fotos.length) main.onclick = () => openGallery(fotos, cur, n.titulo);
+    $$('[data-gal-t]').forEach(b => b.onclick = () => {
+      const i = +b.dataset.galT; if (!main) return openGallery(fotos, i, n.titulo);
+      cur = i; const im = $('img', main); im.src = img(fotos[i]); im.dataset.fit = i ? 'cover' : newsImageFit(n);
+      $$('[data-gal-t]').forEach(t => t.classList.toggle('on', t === b)); const c = $('[data-gal-n]'); if (c) c.textContent = i + 1;
+    });
+  } };
 });
 R('eventos', path => {
   const today = new Date(new Date().toDateString());
@@ -1332,6 +1355,19 @@ R('buscar', (path, q) => {
 });
 function notFound(path) { return shell(path, { title: 'Página no encontrada', crumbs: [['Página no encontrada']], side: null, body: `<div class="empty" style="padding:50px"><h1 style="font-size:28px">Página no encontrada</h1><p>La página que buscas no existe o no está publicada.</p><a class="btn" href="#/">Ir al inicio</a> <a class="btn sec" href="#/mapa-del-sitio">Ver mapa del sitio</a></div>` }); }
 
+/* ---------- Visor de fotos de noticias ---------- */
+function openGallery(fotos, start, title) {
+  let k = start; const dlg = document.createElement('dialog'); dlg.className = 'lbx'; dlg.setAttribute('aria-label', 'Fotos: ' + title);
+  dlg.innerHTML = `<img alt=""><p class="lbx-c"></p><button type="button" class="lbx-x" aria-label="Cerrar">✕</button>${fotos.length > 1 ? '<button type="button" class="lbx-p" aria-label="Foto anterior">‹</button><button type="button" class="lbx-n" aria-label="Foto siguiente">›</button>' : ''}`;
+  const show = i => { k = (i + fotos.length) % fotos.length; const im = $('img', dlg); im.src = img(fotos[k]); im.alt = `Foto ${k + 1} de ${fotos.length}: ${title}`; $('.lbx-c', dlg).textContent = `${title} · ${k + 1} / ${fotos.length}`; };
+  $('.lbx-x', dlg).onclick = () => dlg.close();
+  if (fotos.length > 1) { $('.lbx-p', dlg).onclick = () => show(k - 1); $('.lbx-n', dlg).onclick = () => show(k + 1); }
+  dlg.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') show(k - 1); if (e.key === 'ArrowRight') show(k + 1); });
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener('close', () => dlg.parentNode && dlg.parentNode.removeChild(dlg));
+  document.body.appendChild(dlg); show(k); dlg.showModal();
+}
+
 /* ---------- Comportamiento común del portal ---------- */
 function bindPublicChrome() {
   let tt = $('.to-top'); if (!tt) { tt = document.createElement('button'); tt.className = 'to-top'; tt.setAttribute('aria-label', 'Volver arriba'); tt.innerHTML = ic('arrowup'); tt.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' }); document.body.appendChild(tt); window.addEventListener('scroll', () => tt.classList.toggle('show', scrollY > 600 && !document.body.classList.contains('is-admin')), { passive: true }); }
@@ -1346,6 +1382,16 @@ function bindPublicChrome() {
   if(!window.__publicNavOutside){window.__publicNavOutside=true;document.addEventListener('click', e => { if(!e.target.closest('.mainnav li'))$$('.mainnav li.open').forEach(x => {x.classList.remove('open');$('button.top',x)?.setAttribute('aria-expanded','false');}); });}
   $$('[data-search]').forEach(f => f.onsubmit = e => { e.preventDefault(); go('#/buscar?q=' + encodeURIComponent(f.elements.namedItem('q').value.trim())); });
   const nl = $('[data-newsletter]'); if (nl) nl.onsubmit = e => { e.preventDefault(); const cap=checkCaptcha(nl,'cap-nl');if(cap)return toast(cap,'err'); const em = $('#nl').value; if (!reEmail.test(em)) return toast('Correo no válido', 'err'); coll('suscriptores').push({ correo: em, fecha: nowISO() }); if (!saveDB()) return; nl.reset(); toast('Tu suscripción quedó registrada. El envío por correo está pendiente de habilitación.', 'ok'); };
+  // carrusel de programas
+  $$('[data-pcar]').forEach(c => {
+    const t = $('.pcar-t', c); let paused = false;
+    const step = d => { const it = $('.pcar-i', t); const w = (it ? it.getBoundingClientRect().width : 280) + (parseFloat(getComputedStyle(t).columnGap) || 0); const max = t.scrollWidth - t.clientWidth - 4;
+      if (d > 0 && t.scrollLeft >= max) t.scrollTo({ left: 0, behavior: 'smooth' }); else if (d < 0 && t.scrollLeft <= 4) t.scrollTo({ left: t.scrollWidth, behavior: 'smooth' }); else t.scrollBy({ left: d * w, behavior: 'smooth' }); };
+    $$('[data-pcar-b]', c).forEach(b => b.onclick = () => step(+b.dataset.pcarB));
+    c.onmouseenter = () => paused = true; c.onmouseleave = () => paused = false; c.addEventListener('focusin', () => paused = true); c.addEventListener('focusout', () => paused = false); t.addEventListener('touchstart', () => paused = true, { passive: true });
+    if (PREVIEW || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const id = setInterval(() => { if (!document.body.contains(c)) return clearInterval(id); if (!paused && !document.hidden) step(1); }, 5000);
+  });
   // carrusel
   const slides = $$('.slide');
   if (slides.length > 1) {
@@ -1737,7 +1783,8 @@ SPECS.noticias = {
     { n: 'titulo', l: 'Título', req: true, max: 160, full: true, unique: 'norm' },
     { n: 'resumen', l: 'Resumen', t: 'textarea', pubReq: true, max: 300, full: true, hint: 'Máximo 300 caracteres. Se muestra en las tarjetas.' },
     { n: 'contenido', l: 'Contenido', t: 'rich', pubReq: true },
-    { n: 'imagen', l: 'Imagen principal', t: 'image', full: true, hint: 'Si no se carga, se usa la imagen institucional predeterminada.' },
+    { n: 'imagen', l: 'Imagen principal', t: 'image', full: true, hint: 'Si no se carga, se usa la imagen institucional predeterminada. Puede agregar hasta 4 fotos adicionales (5 en total).' },
+    ...[2, 3, 4, 5].map(k => ({ n: 'foto' + k, l: 'Foto adicional ' + (k - 1), t: 'image' })),
     { n: 'imagenAjuste', l: 'Presentación de la imagen', t: 'select', opts: [['','Automática'],['contain','Completa: logotipo, afiche o documento'],['cover','Cubrir: fotografía']], hint: 'Usa imagen completa para conservar textos y logotipos.' },
     { n: 'video', l: 'Video principal (opcional)', t: 'url', full: true, ph: 'https://www.youtube.com/embed/…', hint: 'URL de inserción (embed). Reemplaza a la imagen en el detalle.' },
     { n: 'adjuntos', l: 'Archivos relacionados', t: 'rows', cols: [{ n: 'titulo', l: 'Título del archivo' }, { n: 'doc', l: 'Archivo PDF', t: 'file' }] },
@@ -1891,6 +1938,8 @@ SPECS.programas = {
   key: 'programas', mod: 'programas', coll: 'programas', title: 'Programas de estudio', singular: 'programa', icon: 'grad', states: ['Borrador', 'Publicado'], label: r => r.nombre, order: true, softDelete: false,
   sub: 'Plantilla única para los programas de estudio. La plana docente se obtiene automáticamente del módulo Plana docente.',
   canCreate: () => currentUser().rol === 'admin', scope: scopeProg, preview: r => '#/programas/' + (r.slug || slugify(r.nombre)),
+  extraActs: () => can('portada') ? `<label class="pview">Vista en la web <select class="inp" data-pview>${[['carrusel', 'Carrusel'], ['grid', 'Cuadrícula']].map(([v, l]) => `<option value="${v}"${progView() === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>` : '',
+  afterList: () => { const sel = $('[data-pview]'); if (sel) sel.onchange = () => { DB.config.home.programasVista = sel.value; audit('Vista de programas', 'Programas de estudio', sel.value === 'carrusel' ? 'Carrusel' : 'Cuadrícula'); if (!saveDB()) return; toast('Los programas se mostrarán en ' + (sel.value === 'carrusel' ? 'carrusel' : 'cuadrícula') + ' en la portada y en la página de programas.', 'ok'); }; },
   cols: [{ l: 'Orden', cls: 'c', f: r => r.orden }, { l: 'Imagen', f: r => thumb(r.imagen) }, { l: 'Programa', f: r => `<b>${esc(r.nombre)}</b><br><small>${esc(r.turno)} · ${esc(r.duracion)}</small>` }, { l: 'Docentes', cls: 'num', f: r => alive('personas').filter(p => (p.programas || []).includes(r.id) && p.estado === 'Publicado').length }, { l: 'UD', cls: 'num', f: r => r.modulos.reduce((a, m) => a + m.uds.length, 0) }, { l: 'Egresados', cls: 'num', f: r => alive('egresados').filter(e => e.programaId === r.id).length }, { l: 'Estado', f: r => stBadge(r.estado) }],
   defaults: () => ({ modulos: [], campoItems: [], convenios: [], duracion: '3 años (6 semestres)', modalidad: 'Presencial', orden: alive('programas').length + 1, docVersiones: [] }),
   versioned: ['brochure', 'malla'],
@@ -2141,7 +2190,8 @@ CUSTOM.portada = () => singletonForm({
   title: 'Portada – bloques, accesos y cifras', icon: 'image', tabs: portadaTabs('b'), crumbs: [['Portada', '#/admin/slides'], ['Bloques']], get: () => DB.config.home,
   fields: [
     { n: 'bloques', l: 'Bloques de la portada (orden y visibilidad)', t: 'custom', render: w => `<div style="display:grid;gap:6px;max-width:520px">${w.bloques.map((b, i) => `<div style="display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--card)"><span style="flex:1">${i + 1}. ${esc(b.label)}</span><label class="check"><input type="checkbox" data-bon="${i}" ${b.on ? 'checked' : ''}> Visible</label><button type="button" class="icon-btn" data-bup="${i}" title="Subir">${ic('up')}</button><button type="button" class="icon-btn" data-bdn="${i}" title="Bajar">${ic('down')}</button></div>`).join('')}</div>`, bind: (w, box, rer) => { $$('[data-bon]', box).forEach(c => c.onchange = () => w.bloques[+c.dataset.bon].on = c.checked); $$('[data-bup]', box).forEach(b => b.onclick = () => { const i = +b.dataset.bup; if (i) { [w.bloques[i - 1], w.bloques[i]] = [w.bloques[i], w.bloques[i - 1]]; rer(); } }); $$('[data-bdn]', box).forEach(b => b.onclick = () => { const i = +b.dataset.bdn; if (i < w.bloques.length - 1) { [w.bloques[i + 1], w.bloques[i]] = [w.bloques[i], w.bloques[i + 1]]; rer(); } }); } },
-    { n: 'accesos', l: 'Accesos rápidos (4 recomendados)', t: 'rows', cols: [{ n: 'titulo', l: 'Título' }, { n: 'texto', l: 'Texto' }, { n: 'icono', l: 'Ícono', t: 'select', def: 'clipboard', opts: ['clipboard', 'book', 'mail', 'monitor', 'briefcase', 'grad', 'database', 'globe'] }, { n: 'enlace', l: 'Enlace (#/ruta, https:// o ext:id)' }] },
+    { n: 'programasVista', l: 'Presentación de los programas de estudio (portada y página de programas)', t: 'select', empty: false, opts: [['carrusel', 'Carrusel con desplazamiento automático'], ['grid', 'Cuadrícula']] },
+    { n: 'accesos', l: 'Accesos rápidos (4 o 6 recomendados)', t: 'rows', cols: [{ n: 'titulo', l: 'Título' }, { n: 'texto', l: 'Texto' }, { n: 'icono', l: 'Ícono', t: 'select', def: 'clipboard', opts: ['clipboard', 'book', 'mail', 'monitor', 'briefcase', 'grad', 'database', 'globe'] }, { n: 'enlace', l: 'Enlace (#/ruta, https:// o ext:id)' }] },
     { n: 'estadoAccesos', l: 'Visibilidad de los accesos', t: 'custom', render: w => quickAccessSummary(w.accesos), bind: (w, box) => { const form = box.closest('form'); const update = () => { box.innerHTML = quickAccessSummary(w.accesos); }; form.addEventListener('input', update); form.addEventListener('change', update); } },
     { n: 'cifras', l: 'Cifras institucionales (use auto:anios, auto:programas, auto:matriculados o auto:egresados para calcularlas desde los datos)', t: 'rows', cols: [{ n: 'label', l: 'Etiqueta' }, { n: 'valor', l: 'Valor' }, { n: 'corte', l: 'Año de corte' }] },
     { n: 'beneficios', l: '¿Por qué estudiar aquí? (hasta 8)', t: 'rows', cols: [{ n: 't', l: 'Título' }, { n: 'd', l: 'Descripción' }, { n: 'i', l: 'Ícono', t: 'select', opts: ['grad', 'users', 'flask', 'briefcase', 'award', 'building', 'target', 'globe', 'monitor', 'star'] }] },
@@ -2560,16 +2610,24 @@ function themeChecks(t) {
 }
 const checksHTML = t => `<ul class="tm-checks">${themeChecks(t).map(r => `<li><span>${esc(r.l)}</span><b>${r.c.toFixed(1)}:1</b><span class="badge ${r.s[0]}">${r.s[1]}</span></li>`).join('')}</ul>`;
 
+function disenoPanel() {
+  const cur = DISENOS.some(d => d[0] === DB.config.diseno) ? DB.config.diseno : 'clasico';
+  const mock = k => `<div class="ds-mock ds-${k}" aria-hidden="true"><i class="m-top"></i><i class="m-hero"><b></b><b></b></i><i class="m-cards"><b></b><b></b><b></b></i></div>`;
+  return `<section class="panel ds-panel"><div class="pb"><h2 style="margin:0 0 4px">Diseño del portal</h2><p style="margin:0 0 14px;color:var(--muted)">Cambia la estructura visual de todo el sitio público. Los colores siguen el tema activo y el contenido no cambia.</p>
+    <div class="ds-grid">${DISENOS.map(([k, l, d]) => `<article class="ds-item${k === cur ? ' on' : ''}">${mock(k)}<div class="tm-body"><h3>${esc(l)} ${k === cur ? '<span class="badge ok">Activo</span>' : ''}</h3><p>${esc(d)}</p><div class="tm-acts">${k === cur ? '' : `<button class="btn sm" data-dis="${k}">${sic('check', 14)} Activar diseño</button>`}</div></div></article>`).join('')}</div></div></section>`;
+}
 CUSTOM.temas = (parts) => {
   ensureThemes();
   const T = DB.config.temas, act = DB.config.tema;
   if (parts[2]) return temaEditor(parts[2]);
   const keys = Object.keys(T);
   const html = admHead('Temas y apariencia', 'El tema activo se aplica a todo el portal público y al panel. Los visitantes no pueden cambiarlo.', `<a class="btn" href="#/admin/temas/nuevo">${sic('plus')} Nuevo tema</a>`, 'palette', [['Temas y apariencia']])
+    + disenoPanel()
     + `<div class="tm-active panel"><div class="pb">${themeMock(T[act], true)}<div class="tm-active-info"><span class="badge ok">${sic('check', 13)} Tema activo</span><h2>${esc(T[act].label)}</h2><p>${esc(T[act].desc || '')}</p><p class="tm-meta">${esc(T[act].modo === 'oscuro' ? 'Modo oscuro' : 'Modo claro')} · Títulos ${esc(T[act].fh)} · Texto ${esc(T[act].ff)} · Bordes ${+T[act].r}px</p><div class="tm-chips">${['navy', 'navy2', 'blue', 'gold'].map(c => `<span><i style="background:${T[act][c]}"></i>${T[act][c]}</span>`).join('')}</div><p><a class="btn sec" href="#/admin/temas/${act}">${sic('edit')} Editar tema activo</a></p></div></div></div>
     <div class="tm-grid">${keys.map(k => { const t = T[k], on = k === act; return `<article class="tm-item${on ? ' on' : ''}">${themeMock(t)}<div class="tm-body"><h3>${esc(t.label)} ${on ? '<span class="badge ok">Activo</span>' : ''}${t.base ? '' : ' <span class="badge gray">Personalizado</span>'}</h3><p>${esc(t.desc || '')}</p><div class="tm-acts">${on ? '' : `<button class="btn sm" data-act="${k}">${sic('check', 14)} Activar</button>`}<a class="btn sm sec" href="#/admin/temas/${k}">${sic('edit', 14)} Editar</a><button class="btn sm ghost" data-dup="${k}" title="Duplicar">${sic('copy', 14)}<span class="sr-only">Duplicar ${esc(t.label)}</span></button>${!t.base && !on ? `<button class="btn sm ghost" data-del="${k}" title="Eliminar">${sic('trash', 14)}<span class="sr-only">Eliminar ${esc(t.label)}</span></button>` : ''}</div></div></article>`; }).join('')}</div>`;
   return {
     html, after: () => {
+      $$('[data-dis]').forEach(b => b.onclick = () => { const d = DISENOS.find(x => x[0] === b.dataset.dis); DB.config.diseno = d[0]; audit('Cambio de diseño del portal', 'Temas y apariencia', d[1]); if (!saveDB()) return; applyTheme(); toast('Diseño «' + d[1] + '» activado en todo el portal.', 'ok'); route(); });
       $$('[data-act]').forEach(b => b.onclick = () => { const k = b.dataset.act; DB.config.tema = k; audit('Activación de tema', 'Temas y apariencia', T[k].label); if(!saveDB())return; applyTheme(); toast('Tema «' + T[k].label + '» activado en todo el portal.', 'ok'); route(); });
       $$('[data-dup]').forEach(b => b.onclick = () => { const src = T[b.dataset.dup]; let label = src.label + ' (copia)', n = 2; while (Object.values(T).some(t => t.label === label)) label = src.label + ' (copia ' + n++ + ')'; let k = slugify(label) || 'tema', i = 2; while (T[k] || k === 'nuevo') k = slugify(label) + '-' + i++; T[k] = Object.assign({}, src, { label, base: false }); audit('Creación', 'Temas y apariencia', label, 'Duplicado de ' + src.label); if(!saveDB())return; toast('Tema duplicado. Ya puede editarlo.', 'ok'); go('#/admin/temas/' + k); });
       $$('[data-del]').forEach(b => b.onclick = async () => { const k = b.dataset.del; if (!await confirmBox(`¿Eliminar el tema <b>${esc(T[k].label)}</b>? Esta acción no se puede deshacer.`, { ok: 'Eliminar' })) return; const l = T[k].label; delete T[k]; audit('Eliminación', 'Temas y apariencia', l); if(!saveDB())return; toast('Tema eliminado.', 'ok'); route(); });

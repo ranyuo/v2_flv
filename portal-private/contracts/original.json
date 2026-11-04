@@ -298,6 +298,34 @@
           "unique": false
         },
         {
+          "name": "foto2",
+          "type": "image",
+          "required": false,
+          "publishRequired": false,
+          "unique": false
+        },
+        {
+          "name": "foto3",
+          "type": "image",
+          "required": false,
+          "publishRequired": false,
+          "unique": false
+        },
+        {
+          "name": "foto4",
+          "type": "image",
+          "required": false,
+          "publishRequired": false,
+          "unique": false
+        },
+        {
+          "name": "foto5",
+          "type": "image",
+          "required": false,
+          "publishRequired": false,
+          "unique": false
+        },
+        {
           "name": "video",
           "type": "url",
           "required": false,

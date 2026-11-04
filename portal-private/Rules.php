@@ -108,8 +108,10 @@ final class PortalRules
                 if(!$link($access['enlace']))throw new PortalError(422,'El enlace de acceso rápido debe ser una ruta interna, ext:id o una URL http/https.');
             }
             foreach($home['cifras'] as $figure)if(!is_array($figure)||!is_scalar($figure['corte']??null)||trim((string)$figure['corte'])==='')throw new PortalError(422,'Cada cifra institucional debe indicar su año de corte.');
+            if(!in_array($home['programasVista']??'carrusel',['grid','carrusel'],true))throw new PortalError(422,'La vista de los programas de estudio no es válida.');
             if(count($home['beneficios'])>8&&!PortalPolicy::equal($old['config']['home']['beneficios']??null,$home['beneficios']))throw new PortalError(422,'La portada admite como máximo ocho beneficios.');
         }
+        if($changed('diseno')&&!in_array($new['config']['diseno']??null,['clasico','moderno','editorial'],true))throw new PortalError(422,'El diseño del portal no es válido.');
         if($changed('popup')){
             $popup=$new['config']['popup']??null;if(!is_array($popup)||!is_bool($popup['activo']??null))throw new PortalError(422,'El comunicado debe tener una casilla de activación válida.');
             foreach(['inicio','fin'] as $key)if(!empty($popup[$key])&&!self::date($popup[$key]))throw new PortalError(422,'La fecha del comunicado no es válida.');

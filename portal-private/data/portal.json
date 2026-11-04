@@ -151,6 +151,18 @@
           "texto": "Ofertas laborales",
           "icono": "briefcase",
           "enlace": "#/servicios/bolsa-laboral"
+        },
+        {
+          "titulo": "Plataforma Virtual",
+          "texto": "Aula virtual de estudiantes y docentes",
+          "icono": "monitor",
+          "enlace": "ext:aula"
+        },
+        {
+          "titulo": "Correo Institucional",
+          "texto": "Google Workspace",
+          "icono": "mail",
+          "enlace": "ext:correo"
         }
       ],
       "cifras": [
@@ -186,7 +198,8 @@
           "d": "Plataforma virtual, biblioteca virtual, repositorio y mesa de partes en línea.",
           "i": "book"
         }
-      ]
+      ],
+      "programasVista": "carrusel"
     },
     "tema": "pisco",
     "mpv": {
@@ -347,7 +360,8 @@
         "base": true
       }
     },
-    "enlacesV2": true
+    "enlacesV2": true,
+    "diseno": "clasico"
   },
   "slides": [
     {
@@ -406,6 +420,14 @@
       "id": "aula",
       "nombre": "Plataforma Virtual",
       "url": "https://flv.iapp.pe",
+      "grupo": "Servicios",
+      "estado": "Activo",
+      "verificado": ""
+    },
+    {
+      "id": "correo",
+      "nombre": "Correo institucional",
+      "url": "https://mail.google.com/a/iestpflv.edu.pe",
       "grupo": "Servicios",
       "estado": "Activo",
       "verificado": ""
@@ -4288,7 +4310,7 @@
       "horario": "Las 24 horas",
       "costo": "Sin costo para la comunidad educativa.",
       "responsable": "Confirmar con la institución",
-      "icono": "cpu",
+      "icono": "monitor",
       "estado": "Publicado",
       "orden": 4,
       "creadoPor": "importacion-flv",

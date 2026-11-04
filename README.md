@@ -37,6 +37,13 @@ Sube `portal-private/` y `public_html/` encima de las carpetas actuales y acepta
 - **Contenido inicial** que carga la instalación: `portal-private/data/portal.json`.
 - **Imágenes y documentos:** `public_html/assets/flv/`. Las imágenes grandes tienen una copia `.webp` que el servidor entrega a los navegadores compatibles.
 
+### Diseños, carrusel de programas y galería de noticias
+
+- **Diseño del portal:** en la intranet, *Temas y apariencia › Diseño del portal*, se elige entre **Clásico institucional**, **Moderno** y **Editorial**. El diseño cambia la estructura visual del sitio público; los colores siguen el tema activo.
+- **Programas de estudio en carrusel:** se muestran en carrusel por omisión, en la portada y en la página de programas. Para cambiar a cuadrícula, usa *Vista en la web* en el módulo *Programas de estudio* o *Presentación de los programas de estudio* en *Portada › Bloques, accesos y cifras*.
+- **Noticias con varias fotos:** cada noticia admite la imagen principal y hasta 4 fotos adicionales (5 en total). En la web se muestran como galería con visor ampliado.
+- **Accesos rápidos:** la instalación nueva incluye *Plataforma Virtual* (https://flv.iapp.pe) y *Correo Institucional* (Google Workspace, https://mail.google.com/a/iestpflv.edu.pe). Subir los archivos no cambia los datos ya guardados: en una instalación existente, agrega *Correo institucional* (identificador `correo`) en *Enlaces y servicios* y luego los dos accesos (`ext:aula` y `ext:correo`) en *Portada › Bloques, accesos y cifras*.
+
 El sistema es una copia del portal de Nasca (`ranyuo/claudenasca`, commit `bf8264c`) adaptada con la información pública de https://iestpflv.edu.pe/, consultada el 30 de octubre de 2026. Las imágenes y los documentos se sirven desde `public_html/assets/flv/`, no desde la web original.
 
 ## Datos que debe confirmar la institución
