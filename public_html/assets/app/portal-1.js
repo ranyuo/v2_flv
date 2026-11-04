@@ -1437,6 +1437,7 @@ function registroEmpresa(){
   <div class="alert info" style="margin:10px 0"><b>Criterios de validación</b><ul style="margin:6px 0 0;padding-left:18px">${crit.criterios.map(c => `<li>${esc(c)}</li>`).join("")}</ul><span class="note">Responsable de la aprobación: ${esc(crit.responsable)}${crit.correo ? ` · ${esc(crit.correo)}` : ""}</span></div>
   <form class="f" data-form="regEmp" novalidate>${EMP_REG_FIELDS().map(f => fieldHtml(f,"")).join("")}${fieldHtml({k:"pass",l:"Contraseña para la intranet",t:"password",req:true,pat:[/^.{12,}$/,"Mínimo 12 caracteres."]},"")}
   <div class="fld wide"><label style="display:flex;gap:8px;align-items:flex-start;font-weight:400"><input type="checkbox" id="empDecl"> <span>Declaro bajo juramento que la empresa se encuentra con RUC <b>activo y habido</b>, que los datos registrados son verídicos y que las ofertas que publique cumplirán la normativa laboral vigente.</span></label><span class="err" id="empDeclErr"></span></div>
+  <div class="fld wide mpv-progress" data-company-progress role="status" hidden><span class="mpv-spinner" aria-hidden="true"></span><span>Registrando empresa, espera un momento. No cierres la página ni repitas el envío.</span></div>
   <div class="fld"><button class="btn" type="submit">Crear cuenta de empresa</button></div></form></section>`;
 }
 const rucValido = r => { r = String(r || ""); if(!/^(10|15|17|20)\d{9}$/.test(r)) return false; const w = [5,4,3,2,7,6,5,4,3,2]; const s = w.reduce((a, x, i) => a + x * +r[i], 0); let d = 11 - s % 11; if(d === 10) d = 0; if(d === 11) d = 1; return d === +r[10] };
@@ -1930,15 +1931,17 @@ const FORMS = {
     HOST.exps().unshift(x); notify("r:adm",`Expediente ${x.num} recibido: ${tram(x.tramite).nombre}`,"mesa"); notify("r:admin",`Expediente ${x.num} recibido`,"mesa");
     log("Registrar","Mesa de partes",x.num); if(!save())return false; render(); docCargo(x.id); toast(`Documento recibido: ${x.num}. Guarde su código de seguimiento.`);
   },
-  regEmp(form){
+  async regEmp(form){
+    if(form.dataset.sending)return;
     const fields=[...EMP_REG_FIELDS(),{k:"pass",req:true,pat:[/^.{12,}$/,"Mínimo 12 caracteres."]}];
     const {vals,errs}=readFields(fields,form);
     if(vals.ruc&&!errs.ruc&&!rucValido(vals.ruc))errs.ruc="El RUC no es válido.";
     const decl=form.querySelector("#empDecl");if(!decl?.checked)errs.ruc="Debes aceptar la declaración jurada.";
     if(!showErrs(form,errs))return;
-    try{const result=HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();
+    form.dataset.sending='true';const controls=[...form.elements].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);const progress=form.querySelector('[data-company-progress]');if(progress)progress.hidden=false;const button=form.querySelector('[type=submit]');const original=button?.textContent;if(button){button.disabled=true;button.textContent='Registrando empresa, espera un momento…';}
+    try{const result=await HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();
       openModal({title:"Empresa registrada",body:`<div class="alert ok">${esc(result.company.nom)} quedó pendiente de validación institucional.</div><p>Tu usuario es <b>${esc(result.username)}</b>. Entra con la contraseña que acabas de elegir.</p>`,foot:'<a class="btn" href="#/admin">Ingresar a la intranet</a>'});
-    }catch(error){toast(error.message);}
+    }catch(error){toast(error.message);}finally{delete form.dataset.sending;controls.forEach(([el,disabled])=>el.disabled=disabled);if(progress)progress.hidden=true;if(button)button.textContent=original;}
   },
   empSelf(form){
     const e = myEmp(), fields = ENT.empresas.fields().filter(f => f.k !== "validada" && f.k !== "ruc"), {vals, errs} = readFields(fields, form);

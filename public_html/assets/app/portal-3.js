@@ -185,6 +185,7 @@ function mpvForm() {
     <div class="field"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información y los documentos presentados son veraces (principio de presunción de veracidad, Ley N.º 27444) y acepto ser notificado al correo electrónico registrado. <span class="req">*</span></span></label></div>
     <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de Privacidad</a> y el tratamiento de mis datos personales (Ley N.º 29733). <span class="req">*</span></span></label></div>
     ${captchaHTML('cap-mpv')}
+    <div class="mpv-progress" data-mpv-progress role="status" aria-live="polite" aria-atomic="true" hidden><span class="mpv-spinner" aria-hidden="true"></span><div><strong>Registrando trámite, espera un momento…</strong><p data-mpv-step></p><small>No cierres esta página ni vuelvas a enviar el formulario.</small></div></div>
     <div class="pz-actions"><button type="reset" class="btn ghost">Limpiar</button><button class="btn" data-send>${S16('send')} Registrar y obtener cargo</button></div>
   </form>`;
 }
@@ -212,7 +213,7 @@ function bindMpv(q0) {
   const c = mpvCfg();
   const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); };
   $$('.pz-mt [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
-  const f = $('[data-mpv]');
+  const f = $('[data-mpv]'); let busy=false,pending=null;
   const syncTipo = () => { const jur = f.tipoPersona.value !== 'Persona natural'; $$('[data-nat]', f).forEach(x => x.hidden = jur); $$('[data-jur]', f).forEach(x => x.hidden = !jur); if (jur && f.tipoDoc.value === 'DNI') f.tipoDoc.value = 'RUC'; if (!jur && f.tipoDoc.value === 'RUC') f.tipoDoc.value = 'DNI'; };
   f.tipoPersona.onchange = syncTipo;
   f.areaDestino.onchange = () => { const a = areaOf(f.areaDestino.value); $('[data-arhint]', f).innerHTML = a ? `Responsable: <b>${esc(a.resp)}</b> · <a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a>` : 'La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.'; };
@@ -221,7 +222,7 @@ function bindMpv(q0) {
   f.archivos.onchange = listFiles;
   f.addEventListener('reset', () => setTimeout(() => { $('[data-files]', f).innerHTML = ''; $$('[data-c]', f).forEach(x => x.textContent = '0'); syncTipo(); }, 0));
   f.onsubmit = async e => {
-    e.preventDefault(); const v = Object.fromEntries(new FormData(f)); const er = {}; const jur = v.tipoPersona !== 'Persona natural';
+    e.preventDefault(); if(busy)return; const v = Object.fromEntries(new FormData(f)); const er = {}; const jur = v.tipoPersona !== 'Persona natural';
     const de = validDoc(v.tipoDoc, v.numDoc); if (!v.numDoc) er.numDoc = 'Ingrese el número de documento.'; else if (de) er.numDoc = de;
     if (jur) { if (String(v.razon).trim().length < 3) er.razon = 'Ingrese la razón social o el nombre de la entidad.'; }
     else { if (String(v.nombresP).trim().length < 2) er.nombresP = 'Ingrese sus nombres.'; if (String(v.apellidos).trim().length < 2) er.apellidos = 'Ingrese sus apellidos.'; }
@@ -240,30 +241,40 @@ function bindMpv(q0) {
     const cap = checkCaptcha(f, 'cap-mpv'); if (cap) er.captcha = cap;
     if (!showErrors(f, er)) return;
     if (rateLimited('mpv', 20)) return toast('Espere unos segundos antes de registrar otro documento.', 'err');
-    const btn = $('[data-send]', f); btn.disabled = true; btn.textContent = 'Registrando…';
+    const btn = $('[data-send]', f),progress=$('[data-mpv-progress]',f),step=$('[data-mpv-step]',f);
+    const signature=JSON.stringify([v,files.map(file=>[file.name,file.size,file.lastModified])]);
+    if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID(),record:null};
+    busy=true;const controls=[...f.elements,...$$('.pz-mt [data-tab]')].map(el=>[el,el.disabled]);
+    controls.forEach(([el])=>el.disabled=true);f.setAttribute('aria-busy','true');progress.hidden=false;progress.scrollIntoView({block:'nearest'});
+    btn.textContent='Registrando, espera un momento…';
+    const preventLeave=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',preventLeave);
     try {
-      const archivos = []; for (const x of files) archivos.push(await storeFile(x, 'mpv'));
-      const fecha = nowISO(); const rec = recepcionDe(fecha); const y = String(new Date(fecha).getFullYear());
-      const C = DB.config.contadores; C.MPV[y] = (C.MPV[y] || 0) + 1; C.DOC[y] = (C.DOC[y] || 0) + 1;
-      let numero = `${c.prefijo}-${y}-${pad(C.MPV[y], c.digitos||6)}`, numDocumento = `DOC-${y}-${pad(C.DOC[y], 6)}`;
-      const u = currentUser(); const nombres = jur ? v.razon.trim() : `${v.nombresP.trim()} ${v.apellidos.trim()}`;
-      const x = { id: uid(), numero, numDocumento, fecha, fechaRecepcion: rec.fecha.toISOString(), enHorario: rec.enHorario, usuarioRegistro: u ? `${u.usuario} (${u.nombre})` : `Ciudadano – portal web (${v.tipoDoc} ${v.numDoc.trim()})`, canal: 'Mesa de Partes Virtual',
-        tipoPersona: v.tipoPersona, nombres, nombresP: jur ? '' : v.nombresP.trim(), apellidos: jur ? '' : v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: v.telefono.trim(), direccion: (v.direccion || '').trim(),
-        tipoTramite: v.tipoTramite, docRef: (v.docRef || '').trim(), asunto: v.asunto.trim(), folios: +v.folios, observaciones: (v.observaciones || '').trim(), archivos, archivo: archivos[0], areaDestino: v.areaDestino, area: 'MP', estado: 'Recibido',
-        historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Presentado por la Mesa de Partes Virtual. Recepción administrativa: ${fshort(rec.fecha, true)}${rec.enHorario ? '' : ' (fuera del horario de atención)'}. Área de destino: ${areaName(v.areaDestino)}.` }] };
-      expCargoCod(x); coll('expedientes').unshift(x);
-      if (!saveDB()) return;
-      numero = x.numero; numDocumento = x.numDocumento;
-      // Las dos notificaciones se generan en el servidor junto al registro.
-      audit('Registro', 'Mesa de partes', numero, `${x.tipoTramite} · destino ${x.areaDestino} · ${archivos.length} archivo(s)`); saveDB();
+      // Cede el control para dibujar el aviso antes de iniciar la carga.
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      let x=pending.record;
+      if(!x){
+        const archivos = []; for (const file of files){step.textContent=`Subiendo archivos: ${archivos.length+1} de ${files.length}.`;archivos.push(await storeFile(file,'mpv'));}
+        const fecha = nowISO(); const rec = recepcionDe(fecha);
+        const numero='',numDocumento='';
+        const u = currentUser(); const nombres = jur ? v.razon.trim() : `${v.nombresP.trim()} ${v.apellidos.trim()}`;
+        x = { id: uid(), numero, numDocumento, fecha, fechaRecepcion: rec.fecha.toISOString(), enHorario: rec.enHorario, usuarioRegistro: u ? `${u.usuario} (${u.nombre})` : `Ciudadano – portal web (${v.tipoDoc} ${v.numDoc.trim()})`, canal: 'Mesa de Partes Virtual',
+          tipoPersona: v.tipoPersona, nombres, nombresP: jur ? '' : v.nombresP.trim(), apellidos: jur ? '' : v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: v.telefono.trim(), direccion: (v.direccion || '').trim(),
+          tipoTramite: v.tipoTramite, docRef: (v.docRef || '').trim(), asunto: v.asunto.trim(), folios: +v.folios, observaciones: (v.observaciones || '').trim(), archivos, archivo: archivos[0], areaDestino: v.areaDestino, area: 'MP', estado: 'Recibido',
+          historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Presentado por la Mesa de Partes Virtual. Recepción administrativa: ${fshort(rec.fecha, true)}${rec.enHorario ? '' : ' (fuera del horario de atención)'}. Área de destino: ${areaName(v.areaDestino)}.` }] };
+        pending.record=x;
+      }
+      step.textContent='Guardando el trámite y preparando tu cargo. Este paso puede tardar unos segundos mientras se procesan las notificaciones.';
+      await portalSubmitExpediente(x,pending.key);
+      const numero=x.numero,numDocumento=x.numDocumento;
+      pending=null;
       f.reset();
       const m = modal({ title: 'Documento registrado', size: 'lg', body: `<div class="notice ok">Tu documento fue <b>recibido por la Mesa de Partes Virtual</b>.</div>
         <div class="pz-codes"><div><span>N.º de expediente</span><b class="mono">${esc(numero)}</b></div><div><span>N.º de documento</span><b class="mono">${esc(numDocumento)}</b></div><div><span>Código de verificación</span><b class="mono">${esc(x.cargoCod || '—')}</b></div></div>
-        <dl class="kv"><dt>Fecha y hora de presentación</dt><dd>${fdate(fecha, true)}</dd><dt>Fecha y hora de recepción</dt><dd>${fdate(rec.fecha, true)}${rec.enHorario ? '' : ' <span class="badge warn">Fuera de horario: siguiente día hábil</span>'}</dd><dt>Área de destino</dt><dd>${esc(areaName(x.areaDestino))}</dd><dt>Plazo referencial</dt><dd>${mpvPlazo(x.tipoTramite)} días hábiles</dd></dl>
+        <dl class="kv"><dt>Fecha y hora de presentación</dt><dd>${fdate(x.fecha, true)}</dd><dt>Fecha y hora de recepción</dt><dd>${fdate(x.fechaRecepcion, true)}${x.enHorario ? '' : ' <span class="badge warn">Fuera de horario: siguiente día hábil</span>'}</dd><dt>Área de destino</dt><dd>${esc(areaName(x.areaDestino))}</dd><dt>Plazo referencial</dt><dd>${c.plazos[x.tipoTramite] || 10} días hábiles</dd></dl>
         <p>Descarga y conserva tu cargo. Correo de contacto: <b>${esc(x.correo)}</b>.</p>`, foot: `<a class="btn ghost" href="${esc('#/servicios/mesa-de-partes?exp=' + numero + '&c=' + (x.cargoCod || ''))}" data-seg>Ver seguimiento</a>${cargoBtn(x)}` });
       $('[data-seg]', m.el).onclick = () => m.close();
-    } catch (err) { console.error(err); toast(err && err.message ? `No se pudo registrar el documento: ${err.message}` : 'No se pudo registrar el documento. Intente nuevamente.', 'err'); }
-    finally { btn.disabled = false; btn.innerHTML = `${S16('send')} Registrar y obtener cargo`; }
+    } catch (err) { toast(err.message||'No se pudo confirmar el registro. Conserva los datos y vuelve a intentar el mismo envío.','err'); }
+    finally {busy=false;controls.forEach(([el,disabled])=>el.disabled=disabled);f.removeAttribute('aria-busy');progress.hidden=true;window.removeEventListener('beforeunload',preventLeave);btn.innerHTML=`${S16('send')} Registrar y obtener cargo`;}
   };
   const q = $('[data-mpvq]');
   const findExp = (n, d) => portalLookup('expedientes', String(n || '').trim().toUpperCase(), String(d || '').trim());
@@ -357,8 +368,8 @@ expDetalle = function (id) {
       <h3 style="margin-top:14px">Asunto</h3><div class="card cb" style="white-space:pre-wrap">${esc(x.asunto)}</div>${x.observaciones ? `<p><b>Observaciones:</b> ${esc(x.observaciones)}</p>` : ''}
       <h3 style="margin-top:14px">Archivos adjuntos (${archivos.length})</h3>${archivos.length ? `<ul class="pz-files">${archivos.map((a, i) => `<li>${S16('file')} <span>${esc(a.original || a.nombre)}</span> <small>${fsize(a.size)}</small><button class="btn xs sec" data-dl="${i}">${sic('download', 13)} Descargar</button>${a.sha256 ? `<code title="SHA-256">${esc(a.sha256.slice(0, 16))}…</code>` : ''}</li>`).join('')}</ul>` : '<p>Sin archivos.</p>'}</div></div>
       <div class="panel"><h2>Historial y seguimiento</h2><div class="pb">${histHTML(x.historial)}</div></div></div>
-    <div style="display:grid;gap:16px;align-content:start"><div class="panel"><h2>Derivar a un área</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xa">Área receptora</label><select id="xa">${areaOptions(x.area === 'MP' ? (x.areaDestino || '') : x.area, { placeholder: 'Seleccione el área' })}</select></div><div class="field"><label for="xan">Proveído / indicación</label><input id="xan" class="inp" placeholder="Ej.: Para su atención y trámite correspondiente"></div><label class="check"><input type="checkbox" id="xam" disabled> Correo pendiente de configuración</label><button class="btn" data-xa>${sic('send')} Derivar expediente</button></div></div>
-      <div class="panel"><h2>Actualizar estado</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xs">Nuevo estado</label><select id="xs">${EXP_STATES.map(s => `<option ${s === x.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div class="field"><label for="xn">Nota / respuesta</label><textarea id="xn" class="inp" rows="3"></textarea></div><label class="check"><input type="checkbox" id="xm" disabled> Correo pendiente de configuración</label><button class="btn sec" data-xs>Guardar estado</button></div></div>
+    <div style="display:grid;gap:16px;align-content:start"><div class="panel"><h2>Derivar a un área</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xa">Área receptora</label><select id="xa">${areaOptions(x.area === 'MP' ? (x.areaDestino || '') : x.area, { placeholder: 'Seleccione el área' })}</select></div><div class="field"><label for="xan">Proveído / indicación</label><input id="xan" class="inp" placeholder="Ej.: Para su atención y trámite correspondiente"></div><label class="check"><input type="checkbox" id="xam" checked disabled> Avisos automáticos por correo</label><button class="btn" data-xa>${sic('send')} Derivar expediente</button></div></div>
+      <div class="panel"><h2>Actualizar estado</h2><div class="pb" style="display:grid;gap:10px"><div class="field"><label for="xs">Nuevo estado</label><select id="xs">${EXP_STATES.map(s => `<option ${s === x.estado ? 'selected' : ''}>${s}</option>`).join('')}</select></div><div class="field"><label for="xn">Nota / respuesta</label><textarea id="xn" class="inp" rows="3"></textarea></div><label class="check"><input type="checkbox" id="xm" checked disabled> Avisos automáticos por correo</label><button class="btn sec" data-xs>Guardar estado</button></div></div>
       <div class="panel"><h2>Plazo</h2><div class="pb meta-list"><span>Tipo: ${esc(x.tipoTramite)} · ${mpvPlazo(x.tipoTramite)} días hábiles</span><span>Vence: <b>${fdate(expPlazo(x).due)}</b></span><span>${expSem(x)}</span></div></div></div></div>`;
   return {
     html, after: () => {
@@ -371,7 +382,7 @@ expDetalle = function (id) {
         x.area = v; if (['Recibido', 'Observado'].includes(x.estado)) x.estado = 'Derivado';
         x.historial.push({ fecha: nowISO(), usuario: me, estado: x.estado, nota: n });
         if ($('#xam').checked) { if (a) mailOut(a.correo, `[${x.numero}] Expediente derivado: ${x.tipoTramite}`, `${x.nombres} · ${x.asunto}${prov ? ' · Proveído: ' + prov : ''}`); mailOut(x.correo, `Expediente ${x.numero}: derivado`, `Su documento fue derivado a ${areaName(v)}.`); }
-        audit('Derivación', 'Mesa de partes', x.numero, n); stamp(x); if (saveDB()) { toast('Expediente derivado. El envío por correo está pendiente de configuración.', 'ok'); route(); }
+        audit('Derivación', 'Mesa de partes', x.numero, n); stamp(x); if (saveDB()) { toast('Expediente derivado. Avisos registrados para el solicitante y el área receptora.', 'ok'); route(); }
       };
       $('[data-xs]').onclick = () => {
         const v = $('#xs').value, n = $('#xn').value.trim(); if (v === x.estado && !n) return toast('Seleccione otro estado o escriba una nota.', 'err'); if (['Observado', 'Atendido'].includes(v) && !n) return toast(v === 'Observado' ? 'Indique la observación.' : 'Registre la respuesta o el detalle de la atención.', 'err');
@@ -462,6 +473,7 @@ function lrForm() {
     <div class="field pz-decl"><label class="check"><input type="checkbox" name="declaro"> <span>Declaro que la información proporcionada es verdadera y corresponde a los hechos que deseo comunicar. <span class="req">*</span></span></label></div>
     <div class="field"><label class="check"><input type="checkbox" name="acepto"> <span>Acepto la <a href="#/politica-de-privacidad" target="_blank">Política de Privacidad</a> y el tratamiento de mis datos personales (Ley N.º 29733). <span class="req">*</span></span></label></div>
     ${captchaHTML('cap-lr2')}
+    <div class="mpv-progress" data-lr-progress role="status" aria-live="polite" hidden><span class="mpv-spinner" aria-hidden="true"></span><div><strong>Registrando reclamo, espera un momento…</strong><p>Estamos guardando tu solicitud y preparando tu constancia. No cierres la página ni repitas el envío.</p></div></div>
     <div class="pz-actions"><button type="reset" class="btn ghost">${S16('back')} Cancelar</button><button class="btn" data-send>${S16('send')} Enviar reclamo</button></div>
    </div></form>`;
 }
@@ -485,13 +497,13 @@ R('servicios/libro-de-reclamaciones', (path, q0) => lrPage(path, q0));
 R('transparencia/libro-de-reclamaciones', (path, q0) => lrPage('servicios/libro-de-reclamaciones', q0));
 R('libro-de-reclamaciones', (path, q0) => lrPage('servicios/libro-de-reclamaciones', q0 || new URLSearchParams()));
 function bindLr2(q0) {
-  const c = lrCfg(); const f = $('[data-lr2]'); const L = DB.config.limites; const lim = Math.max(2000, L.descripcion || 0);
+  const c = lrCfg(); const f = $('[data-lr2]');let busy=false,pending=null; const L = DB.config.limites; const lim = Math.max(2000, L.descripcion || 0);
   const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); };
   $$('.pz-mt [data-tab]').forEach(b => b.onclick = () => showTab(b.dataset.tab));
   $$('[data-count]', f).forEach(t => t.addEventListener('input', () => { t.parentNode.querySelector('[data-c]').textContent = t.value.length; }));
   f.addEventListener('reset', () => setTimeout(() => $$('[data-c]', f).forEach(x => x.textContent = '0'), 0));
   f.onsubmit = async e => {
-    e.preventDefault(); const v = Object.fromEntries(new FormData(f)); const er = {};
+    e.preventDefault();if(busy)return; const v = Object.fromEntries(new FormData(f)); const er = {};
     if (!v.tipoDoc) er.tipoDoc = 'Seleccione el tipo de documento.';
     else { const de = validDoc(v.tipoDoc, v.numDoc); if (!v.numDoc) er.numDoc = 'Ingrese el número de documento.'; else if (de) er.numDoc = de; }
     if (String(v.nombresP).trim().length < 2) er.nombresP = 'Ingrese sus nombres.';
@@ -510,26 +522,21 @@ function bindLr2(q0) {
     const cap = checkCaptcha(f, 'cap-lr2'); if (cap) er.captcha = cap;
     if (!showErrors(f, er)) return;
     if (rateLimited('lr2', 20)) return toast('Espere unos segundos antes de registrar otro reclamo.', 'err');
-    const btn = $('[data-send]', f); btn.disabled = true;
+    const btn=$('[data-send]',f),progress=$('[data-lr-progress]',f);const signature=JSON.stringify([v,file?[file.name,file.size,file.lastModified]:null]);if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID(),record:null};busy=true;const controls=[...f.elements].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);progress.hidden=false;progress.scrollIntoView({block:'nearest'});btn.textContent='Registrando, espera un momento…';f.setAttribute('aria-busy','true');
     try {
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));let r=pending.record;if(!r){
       const adj = file ? await storeFile(file, 'rcl') : null;
-      const fecha = nowISO(); const y = String(new Date(fecha).getFullYear()); const C = DB.config.contadores.RCL; C[y] = (C[y] || 0) + 1;
-      let codigo = `RCL-${y}-${pad(C[y], 5)}`; const plazoDias = v.tipo === 'Queja' ? c.plazoQueja : c.plazoReclamo; const nombres = `${v.nombresP.trim()} ${v.apellidos.trim()}`;
-      const r = { id: uid(), codigo, fecha, tipo: v.tipo, nombres, nombresP: v.nombresP.trim(), apellidos: v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: (v.telefono || '').trim(), condicion: v.condicion, programaId: v.programaId === 'ninguno' ? '' : v.programaId, fechaHecho: v.fechaHecho, areaHecho: v.areaHecho || '',
+      const fecha = nowISO();
+      let codigo = ''; const plazoDias = v.tipo === 'Queja' ? c.plazoQueja : c.plazoReclamo; const nombres = `${v.nombresP.trim()} ${v.apellidos.trim()}`;
+      r = { id: uid(), codigo, fecha, tipo: v.tipo, nombres, nombresP: v.nombresP.trim(), apellidos: v.apellidos.trim(), tipoDoc: v.tipoDoc, numDoc: v.numDoc.trim(), correo: v.correo.trim(), telefono: (v.telefono || '').trim(), condicion: v.condicion, programaId: v.programaId === 'ninguno' ? '' : v.programaId, fechaHecho: v.fechaHecho, areaHecho: v.areaHecho || '',
         asunto: clamp(v.descripcion.trim().replace(/\s+/g, ' '), 80), descripcion: v.descripcion.trim(), pedido: v.pedido.trim(), adjunto: adj, estado: 'Recibido', plazoDias, vence: diasHabiles(fecha, plazoDias).due.toISOString(), responsable: { nombre: c.responsable, cargo: c.cargo, correo: c.correo }, area: '',
         historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Registro desde el Libro de Reclamaciones Virtual. Responsable: ${c.responsable} (${c.cargo}).` }], notas: [], respuesta: '', notifInst: 'Pendiente', notifUser: 'Pendiente', anulado: false };
-      coll('reclamos').unshift(r);
-      if (!saveDB()) return;
-      codigo = r.codigo;
-      r.notifInst = mailOut(c.correo, `[${codigo}] Nuevo ${v.tipo.toLowerCase()} registrado`, `${r.nombres} (${r.condicion}) - ${r.descripcion}`);
-      if (DB.config.correoReclamos && DB.config.correoReclamos !== c.correo) mailOut(DB.config.correoReclamos, `[${codigo}] Copia: nuevo ${v.tipo.toLowerCase()}`, r.asunto);
-      r.notifUser = mailOut(r.correo, `Constancia de registro ${codigo}`, `Su ${v.tipo.toLowerCase()} fue registrado el ${fshort(fecha, true)} con el código ${codigo}. Plazo máximo de respuesta: ${plazoDias} días hábiles (hasta el ${fshort(r.vence)}).`);
-      audit('Registro', 'Libro de reclamaciones', codigo, `${v.tipo} registrado desde el portal. Notificación institucional: ${r.notifInst}`); saveDB();
+      pending.record=r;}await portalSubmitService('reclamos',r,pending.key);pending=null;const codigo=r.codigo,fecha=r.fecha,plazoDias=r.plazoDias;
       f.reset();
       const m = modal({ title: `${v.tipo} registrado`, body: `<div class="notice ok">Tu ${esc(v.tipo.toLowerCase())} fue registrado correctamente el ${fdate(fecha, true)}.</div><p>Tu código de seguimiento es:</p><div class="code-box">${codigo}</div><p>Código de verificación: <b class="mono">${esc(r.cargoCod || 'Pendiente de actualización')}</b></p><dl class="kv" style="margin-top:12px"><dt>Responsable</dt><dd>${esc(c.responsable)} · ${esc(c.cargo)}</dd><dt>Plazo de respuesta</dt><dd>${plazoDias} días hábiles (hasta el ${fdate(r.vence)})</dd></dl><p>Puedes descargar tu constancia. Correo de contacto: <b>${esc(r.correo)}</b>. Guarda tu código para consultar el estado.</p>`, foot: `<button class="btn sec" data-print>${S16('print')} Descargar constancia (PDF)</button><button class="btn" data-ok>Aceptar</button>` });
       $('[data-ok]', m.el).onclick = m.close; $('[data-print]', m.el).onclick = () => lrPdf(r, 'constancia');
-    } catch (err) { console.error(err); toast('No se pudo registrar. Intente nuevamente.', 'err'); }
-    finally { btn.disabled = false; }
+    } catch (err) {toast(err.message||'No se pudo confirmar el registro. Conserva los datos y reintenta el mismo envío.','err');}
+    finally {busy=false;controls.forEach(([el,disabled])=>el.disabled=disabled);progress.hidden=true;f.removeAttribute('aria-busy');btn.innerHTML=`${S16('send')} Enviar reclamo`;}
   };
   const q = $('[data-lrq2]');
   const show = r => { $('#lq2-r').innerHTML = r ? `<div class="pz-track" role="status"><div class="pz-track-h"><div><b class="mono">${esc(r.codigo)}</b> · ${esc(r.tipo)}<br><small>Registrado el ${fdate(r.fecha, true)}</small></div>${stBadge(r.anulado ? 'Anulado' : r.estado)}</div>${svTrack(['Recibido', 'Derivado', 'En atención', 'Atendido'], r.anulado ? 'Anulado' : r.estado, { Recibido: 0, Derivado: 1, 'En atención': 2, Atendido: 3, Cerrado: 3, Anulado: 0 })}<dl class="kv"><dt>Plazo</dt><dd>${lrSem(r)} · vence ${fdate(lrPlazo(r).due)}</dd>${r.area ? `<dt>Área que atiende</dt><dd>${esc(areaName(r.area))}</dd>` : ''}${r.respuesta ? `<dt>Respuesta</dt><dd style="white-space:pre-wrap">${esc(r.respuesta)}</dd>` : ''}</dl><ol class="pz-tl">${(r.historial || []).map(h => `<li><span>${fshort(h.fecha, true)}</span><b>${esc(h.estado)}</b></li>`).join('')}</ol><div style="margin-top:12px"><button type="button" class="btn sm sec" data-lrpdf>${S16('download')} Descargar constancia (PDF)</button></div></div>` : `<div class="notice warn" role="status">No se encontró un registro con ese código y documento. Verifique los datos de su constancia.</div>`; const b = $('[data-lrpdf]'); if (b && r) b.onclick = () => lrPdf(r, 'constancia'); };
@@ -567,13 +574,13 @@ async function lrPdf(r, kind) {
   y+=46;
   if(y>267){doc.addPage();y=20;}
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.8); doc.setTextColor(70);
-  doc.text(doc.splitTextToSize(`La formulación del reclamo no impide acudir a otras vías de solución de controversias ni es requisito previo para interponer una denuncia ante las autoridades competentes. El instituto dará respuesta en un plazo no mayor de ${lrPlazoDias(r)} días hábiles mediante el seguimiento del portal. El envío por correo está pendiente de habilitación. Consulte con el seguimiento y su documento o código de verificación.`, W - 2 * M), M, y + 4);
+  doc.text(doc.splitTextToSize(`La formulación del reclamo no impide acudir a otras vías de solución de controversias ni es requisito previo para interponer una denuncia ante las autoridades competentes. El instituto dará respuesta en un plazo no mayor de ${lrPlazoDias(r)} días hábiles mediante el seguimiento del portal. Los avisos por correo dependen de la configuración institucional. Consulte el seguimiento y su documento o código de verificación.`, W - 2 * M), M, y + 4);
   pdfPie(doc, `Libro de Reclamaciones Virtual · ${lrCfg().correo} · ${inst().direccion}`);
   downloadBlob(doc.output('blob'), `${kind === 'constancia' ? 'Constancia' : 'Hoja'}_${r.codigo}.pdf`);
 }
 
 /* ---------- Panel del Libro de reclamaciones ---------- */
-const lrTabs2 = a => tabsBar([['d', 'Resumen', '#/admin/reclamos'], ['l', 'Bandeja de reclamos', '#/admin/reclamos/bandeja'], ['n', 'Correo pendiente', '#/admin/reclamos/notificaciones'], ['c', 'Responsable y plazos', '#/admin/reclamos/config']], a);
+const lrTabs2 = a => tabsBar([['d', 'Resumen', '#/admin/reclamos'], ['l', 'Bandeja de reclamos', '#/admin/reclamos/bandeja'], ['n', 'Notificaciones por correo', '#/admin/reclamos/notificaciones'], ['c', 'Responsable y plazos', '#/admin/reclamos/config']], a);
 const baseReclamos = CUSTOM.reclamos, baseReclamoDet = reclamoDetalle;
 CUSTOM.reclamos = (parts) => {
   if (parts[2] === 'notificaciones') { const o = lrNotif(); o.html = o.html.replace(lrTabs('n'), lrTabs2('n')); return o; }
@@ -615,7 +622,7 @@ reclamoDetalle = function (id) {
     const d = $('[data-der]'); if (d) d.onclick = () => { const v = $('#lr-ar').value; if (!v) return toast('Seleccione el área.', 'err'); const a = areaOf(v); const ind = $('#lr-arn').value.trim(); const me = currentUser().usuario;
       r.area = v; if (r.estado === 'Recibido') r.estado = 'Derivado'; r.historial.push({ fecha: nowISO(), usuario: me, estado: r.estado, nota: `Derivado a ${areaName(v)}${ind ? ': ' + ind : ''}` });
       if (a) mailOut(a.correo, `[${r.codigo}] ${r.tipo} derivado para su atención`, `${r.nombres}: ${r.descripcion}${ind ? ' · Indicación: ' + ind : ''} · Vence: ${fshort(lrPlazo(r).due)}`);
-      audit('Derivación', 'Libro de reclamaciones', r.codigo, areaName(v)); stamp(r); if (saveDB()) { toast('Derivación registrada. El envío por correo está pendiente de configuración.', 'ok'); route(); } };
+      audit('Derivación', 'Libro de reclamaciones', r.codigo, areaName(v)); stamp(r); if (saveDB()) { toast('Derivación registrada. Avisos en cola para el solicitante y el área receptora.', 'ok'); route(); } };
   };
   return out;
 };
@@ -700,7 +707,7 @@ function bolsaEmpresas() {
     e.validada = ok; e.estadoVal = ok ? 'Aprobada' : 'Rechazada'; e.motivoRech = ok ? '' : motivo.trim(); e.valPor = me.usuario; e.fechaVal = new Date().toISOString().slice(0, 10);
     if (u && u.ixId) IX.notifyTo('u:' + u.ixId, ok ? 'Tu empresa fue aprobada: ya puedes publicar convocatorias' : 'Tu solicitud de empresa no fue aprobada: ' + e.motivoRech, 'bolsa');
     mailOut(e.correo, ok ? `Cuenta de empresa aprobada - Bolsa laboral ${inst().nombre}` : `Cuenta de empresa no aprobada - Bolsa laboral ${inst().nombre}`, ok ? `La empresa ${e.nom} fue validada por la ${c.responsable}. Ingrese con su RUC y contraseña.` : `Motivo: ${e.motivoRech}`);
-    IX.logAct(ok ? 'Aprobar empresa' : 'Rechazar empresa', 'Bolsa laboral', `${e.nom} (RUC ${e.ruc})${ok ? '' : ' · ' + e.motivoRech}`); if(!IX.persist())return false; toast(ok ? `${e.nom} aprobada. El correo está pendiente de configuración.` : `${e.nom} rechazada. El correo está pendiente de configuración.`, 'ok'); route();
+    IX.logAct(ok ? 'Aprobar empresa' : 'Rechazar empresa', 'Bolsa laboral', `${e.nom} (RUC ${e.ruc})${ok ? '' : ' · ' + e.motivoRech}`); if(!IX.persist())return false; toast(ok ? `${e.nom} aprobada. Aviso registrado en la cola de correo.` : `${e.nom} rechazada. Aviso registrado en la cola de correo.`, 'ok'); route();
   };
   return { html, after: () => {
     $$('[data-ef]').forEach(b => b.onclick = () => { st.f = b.dataset.ef; route(); });
