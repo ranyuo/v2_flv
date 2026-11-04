@@ -39,7 +39,7 @@ Sube `portal-private/` y `public_html/` encima de las carpetas actuales y acepta
 
 ### Diseños, carrusel de programas y galería de noticias
 
-- **Diseño del portal:** en la intranet, *Temas y apariencia › Diseño del portal*, se elige entre **Clásico institucional**, **Moderno** y **Editorial**. El diseño cambia la estructura visual del sitio público; los colores siguen el tema activo.
+- **Diseño del portal:** en la intranet, *Temas y apariencia › Diseño del portal*, se elige entre **Clásico institucional**, **Moderno**, **Editorial** y **Dinámico** (estilo universitario de alto contraste: menú oscuro, titulares en mayúsculas resaltados, accesos con íconos circulares sobre la portada y franjas oscuras con trama). El diseño cambia la estructura visual del sitio público; los colores siguen el tema activo.
 - **Programas de estudio en carrusel:** se muestran en carrusel por omisión, en la portada y en la página de programas. Para cambiar a cuadrícula, usa *Vista en la web* en el módulo *Programas de estudio* o *Presentación de los programas de estudio* en *Portada › Bloques, accesos y cifras*.
 - **Noticias con varias fotos:** cada noticia admite la imagen principal y hasta 4 fotos adicionales (5 en total). En la web se muestran como galería con visor ampliado.
 - **Accesos rápidos:** la instalación nueva incluye *Plataforma Virtual* (https://flv.iapp.pe) y *Correo Institucional* (Google Workspace, https://mail.google.com/a/iestpflv.edu.pe). Subir los archivos no cambia los datos ya guardados: en una instalación existente, agrega *Correo institucional* (identificador `correo`) en *Enlaces y servicios* y luego los dos accesos (`ext:aula` y `ext:correo`) en *Portada › Bloques, accesos y cifras*.

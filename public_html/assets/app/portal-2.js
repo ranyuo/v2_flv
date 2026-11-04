@@ -200,6 +200,7 @@ const DISENOS = [
   ['clasico', 'Clásico institucional', 'Diseño original del portal: cabecera institucional, carrusel y bloques en tarjetas.'],
   ['moderno', 'Moderno', 'Portada a pantalla completa, menú flotante con efecto vidrio, tarjetas amplias con esquinas redondeadas y sombras suaves.'],
   ['editorial', 'Editorial', 'Estilo de revista digital: tipografía grande, líneas finas, fondo claro y la noticia principal destacada en grande.'],
+  ['dinamico', 'Dinámico', 'Estilo universitario de alto contraste: menú oscuro, titulares grandes en mayúsculas resaltados, accesos con íconos circulares sobre la portada y franjas oscuras con trama.'],
 ];
 function applyTheme() {
   if (!DB || !DB.config) return; ensureThemes(); const t = DB.config.temas[DB.config.tema];
