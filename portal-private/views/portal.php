@@ -25,5 +25,6 @@
 <script defer src="<?= portal_asset('portal-4.js') ?>"></script>
 <script defer src="<?= portal_asset('/portal-server.js') ?>"></script>
 <script defer src="<?= portal_asset('/academic-documents.js') ?>"></script>
+<script defer src="<?= portal_asset('/standalone-services.js') ?>"></script>
 </body>
 </html>
