@@ -33,7 +33,7 @@ Como alternativa al formulario, el bloque `smtp` de `config.php` (ver `config.ex
 
 ## Actualizar una instalación existente
 
-Sube los archivos como de costumbre (ver README). La primera visita aplica la actualización de la base, del esquema 5 al 7: crea `pisco_mail` y otorga a Secretaría Académica el permiso de Configuración académica. Esto se hace una sola vez y está protegido contra peticiones simultáneas.
+Sube los archivos como de costumbre (ver README). La primera visita aplica la actualización de la base, del esquema 5 al 7: crea `pisco_mail` y da al Responsable académico permiso de edición en Configuración académica y a Dirección permiso de consulta. Esto se hace una sola vez y está protegido contra peticiones simultáneas.
 
 ## Verificación realizada
 
