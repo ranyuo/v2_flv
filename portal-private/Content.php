@@ -1,0 +1,65 @@
+<?php
+declare(strict_types=1);
+
+/** Correcciones conocidas de Chincha; conserva el resto del catálogo y los datos operativos. */
+final class PortalContent
+{
+    public static function forJson(array $payload): array
+    {
+        if (isset($payload['data']['academico'])) {
+            $payload['data']['academico']['publicados'] = (object)($payload['data']['academico']['publicados'] ?? []);
+        }
+        return $payload;
+    }
+
+    public static function normalize(array $data): array
+    {
+        foreach ($data['tupa'] ?? [] as $i => $row) {
+            $categories = ['6.- CONSTANCIA Y CERTIFICADOS' => '6.- CONSTANCIAS Y CERTIFICADOS',
+                '12.-ALQUILERES' => '12.- ALQUILERES'];
+            if (isset($categories[$row['categoria'] ?? ''])) {
+                $data['tupa'][$i]['categoria'] = $categories[$row['categoria']];
+            }
+            $known = ['4.1' => ['4.1 ATRÍCULA REGULAR', '4.1 MATRÍCULA REGULAR'],
+                '10.6' => ['10.6 CURSO DE OFIRMÁTICA Y/O EXCEL (PRESENCIAL) - MES 3',
+                    '10.6 CURSO DE OFIMÁTICA Y/O EXCEL (PRESENCIAL) - MES 3']];
+            $fix = $known[(string)($row['codigo'] ?? '')] ?? null;
+            if ($fix && ($row['denominacion'] ?? '') === $fix[0]) {
+                $data['tupa'][$i]['denominacion'] = $fix[1];
+            }
+        }
+        return self::fitLimits($data);
+    }
+
+    /** Recorta los textos cargados que superan el límite del formulario; si no, el registro no se puede volver a guardar. */
+    private static function fitLimits(array $data): array
+    {
+        foreach (PortalPolicy::defaults()['specs'] as $spec) {
+            $key = $spec['collection'] ?? '';
+            if (!isset($data[$key]) || !is_array($data[$key]) || !array_is_list($data[$key])) continue;
+            foreach ($spec['fields'] as $field) {
+                $max = $field['max'] ?? null;
+                if (!is_int($max) || !in_array($field['type'] ?? 'text', ['text', 'textarea'], true)) continue;
+                foreach ($data[$key] as $i => $row) {
+                    $value = is_array($row) ? ($row[$field['name']] ?? null) : null;
+                    if (!is_string($value) || str_contains($value, '<') || preg_match_all('/./us', $value) <= $max) continue;
+                    if ($key === 'personas' && $field['name'] === 'titulo') $value = preg_replace('/\bMag\./u', 'Mg.', $value);
+                    $value = self::cut($value, $max);
+                    if (!empty($field['unique']) && in_array(strtolower(trim($value)), array_map(fn($other) => strtolower(trim((string)($other[$field['name']] ?? ''))), $data[$key]), true)) continue;
+                    $data[$key][$i][$field['name']] = $value;
+                }
+            }
+        }
+        return $data;
+    }
+
+    private static function cut(string $text, int $max): string
+    {
+        $chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY);
+        if (count($chars) <= $max) return $text;
+        $short = rtrim(implode('', array_slice($chars, 0, $max - 1)));
+        $word = preg_replace('/\s+\S*$/u', '', $short);
+        if ($word !== '' && preg_match_all('/./us', $word) >= $max * 0.6) $short = $word;
+        return rtrim($short, " ,;:.") . '…';
+    }
+}
