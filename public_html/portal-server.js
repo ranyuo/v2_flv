@@ -34,7 +34,9 @@ function portalMerge(target,source) {
 }
 function portalLookup(type,reference,document,mode='codigo'){
   try{
-    const result=portalRequest('POST','/api/consultas/'+type,{reference,document,mode});
+    // La búsqueda de certificados por DNI exige la verificación anti-spam resuelta en el formulario.
+    const proof=type==='certificados'&&mode!=='codigo'?portalProofs.certificados:undefined;
+    const result=portalRequest('POST','/api/consultas/'+type,{reference,document,mode,...(proof?{proof}:{})});
     const records=result.records||[result.record];
     if(mode==='dni')for(const record of records)if(record)record.dni=reference;
     // Una consulta pública no reemplaza registros completos de una sesión administrativa por proyecciones sin adjuntos o datos privados.

@@ -14,6 +14,7 @@ require_once __DIR__.'/Policy.php';
 require_once __DIR__.'/Accounts.php';
 require_once __DIR__.'/Files.php';
 require_once __DIR__.'/Domain.php';
+require_once __DIR__.'/AcademicDocuments.php';
 require_once __DIR__.'/Forms.php';
 require_once __DIR__.'/Audit.php';
 require_once __DIR__.'/Backups.php';
@@ -283,10 +284,10 @@ final class PortalApp
             $aliases=[];$data=PortalFiles::persist($this,$data,$aliases,0,$previous);
             PortalServices::apply($previous,$data,$user);PortalRules::apply($previous,$data,$user);PortalRules::catalogs($data);
             PortalAcademic::validate($previous,$data);
-            PortalDomain::validate($previous,$data,$user);PortalDomain::syncCertificates($data);$this->validateBindings($data);
+            AcademicDocuments::validate($previous,$data);PortalDomain::validate($previous,$data,$user);PortalDomain::syncCertificates($data);AcademicDocuments::sync($data);$this->validateBindings($data);
             $allAccounts=array_map($this->accountDto(...),$this->db()->query('SELECT * FROM pisco_users')->fetchAll());
             PortalDomain::notifications($previous,$data,$allAccounts);
-            $data['usuarios']=[];$data['__v']=13;$data['visitas']=$previous['visitas']??[];
+            $data['usuarios']=[];$data['__v']=14;$data['visitas']=$previous['visitas']??[];
             $changed=[];foreach($data as $key=>$value)if(!PortalPolicy::equal($value,$previous[$key]??null))$changed[]=$key;
             PortalAudit::changes($this,$previous,$data,$user);
             $data['auditoria']=$previous['auditoria']??[];
@@ -533,16 +534,27 @@ final class PortalApp
     {
         if (!in_array($type, ['expedientes', 'reclamos', 'certificados', 'becarios'], true)) throw new PortalError(404, 'Consulta no disponible.');
         $this->rate('lookups', 10, 60);
+        $lookupProof=$input['proof']??[];
         $input = self::validate($input, ['reference' => 'required|string|max:150', 'document' => (in_array($type,['certificados','becarios'],true) ? 'nullable' : 'required').'|string|max:50', 'mode' => 'nullable|string|max:10']);
+        $input['proof']=$lookupProof;
         $data = json_decode($this->state()['data'], true, flags: JSON_THROW_ON_ERROR);
-        if (!in_array($input['mode'] ?? '', ['', 'codigo', 'dni'], true)) throw new PortalError(422, 'Modo de consulta no válido.');
+        if (!in_array($input['mode'] ?? '', ['', 'codigo', 'dni', 'nombre'], true)) throw new PortalError(422, 'Modo de consulta no válido.');
+        if($type==='certificados'&&!in_array($input['mode']??'',['dni','nombre'],true)&&$lookupProof!==[])$this->submissionProof('certificados',$input);
         if ($type === 'certificados' && ($input['mode'] ?? '') === 'dni' && !preg_match('/^[0-9]{8}$/', $input['reference'])) throw new PortalError(422, 'El DNI debe tener ocho dígitos.');
         if ($type === 'becarios') {
             if(!preg_match('/^[0-9]{8}$/',$input['reference']))throw new PortalError(422,'DNI no válido.');
             $matches=[];foreach($data['becarios']??[] as $r)if(self::publishedScholarship($r,$data)&&($r['dni']??'')===$input['reference']){$r=array_intersect_key($r,array_flip(['id','periodoId','apellidos','nombres','programaId','tipoId','motivo','estado','dni']));$r['dni']='****'.substr($r['dni'],-4);$matches[]=$r;}return ['records'=>$matches];
         }
-        if ($type === 'certificados' && ($input['mode'] ?? '') === 'dni') {
-            $matches=[]; foreach ($data['certificados']??[] as $r) if (!($r['deleted']??false) && ($r['dni']??'')===$input['reference']) $matches[]=array_intersect_key($r,array_flip(['id','codigo','nombres','programaId','tipo','detalle','fecha','estado','origen','motivo']));
+        if ($type === 'certificados' && in_array($input['mode']??'', ['dni','nombre'],true)) {
+            $this->submissionProof('certificados',$input);
+            $nameMode=$input['mode']==='nombre';$query=PortalRules::normal($input['reference']);
+            if($nameMode&&strlen($query)<3)throw new PortalError(422,'Ingresa al menos tres caracteres del nombre.');
+            $matches=[];
+            foreach($data['certificados']??[] as $r){
+                if($r['deleted']??false)continue;$name=PortalRules::normal($r['nombres']??'');
+                $hit=$nameMode ? count(array_filter(explode(' ',$query),fn($token)=>$token!==''&&!str_contains($name,$token)))===0 : ($r['dni']??'')===$input['reference'];
+                if($hit){$matches[]=AcademicDocuments::publicRecord($r);if(count($matches)>=100)break;}
+            }
             return ['records'=>$matches];
         }
         if ($type === 'reclamos') {
@@ -559,7 +571,7 @@ final class PortalApp
                 && (empty($record['cargoCod']) || !hash_equals($record['cargoCod'], strtoupper($input['document'])))) continue;
             foreach (['archivos', 'archivo', 'adjunto', 'notas', 'notaInterna', 'correo', 'telefono', 'direccion', 'usuarioRegistro'] as $key) unset($record[$key]);
             if ($type === 'certificados') {
-                $record = array_intersect_key($record, array_flip(['id', 'codigo', 'nombres', 'programaId', 'tipo', 'detalle', 'fecha', 'estado', 'origen', 'motivo']));
+                $record = AcademicDocuments::publicRecord($record);
             } else {
                 // Los proveídos internos no se publican; la observación y la respuesta del expediente sí, porque son para el ciudadano.
                 $citizen = $type === 'expedientes' ? ['Observado', 'Atendido', 'Archivado'] : [];

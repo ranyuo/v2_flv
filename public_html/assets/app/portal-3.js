@@ -1185,22 +1185,9 @@ R('servicios', path => {
    y cada título se copian al registro «Verificación de documentos» del portal, que es el que
    consulta la página pública y donde el personal puede anular un documento. */
 const PZ_SRC = { cert: 'Certificación modular', tit: 'Grados y títulos' };
-function pzSyncCerts(A) {
-  const X = A || (IX && IX.db ? XD() : null); if (!X || !X.estudiantes) return false;
-  const R0 = coll('certificados'); let ch = false; const seen = new Set();
-  const pidOf = id => { const m = Object.entries(X.progMap || {}).find(([, v]) => +v === +id); if (m) return m[0]; const pr = (X.programas || []).find(p => p.id === id); return pr && pr.pid || ''; };
-  const put = (ref, w) => { seen.add(ref); let r = R0.find(c => c.ref === ref) || (w.codigo && R0.find(c => !c.ref && c.codigo === w.codigo));
-    if (!r) { R0.unshift(stamp(Object.assign({ id: uid(), ref, estado: 'Válido' }, w), true)); ch = true; return; }
-    if (!r.ref) { r.ref = ref; ch = true; }
-    Object.keys(w).forEach(k => { if (w[k] !== undefined && r[k] !== w[k]) { r[k] = w[k]; ch = true; } }); };
-  const E = id => X.estudiantes.find(e => e.id === id);
-  (X.certs || []).forEach(c => { const e = E(c.est), m = (X.modulos || []).find(x => x.id === c.mod) || {}; if (!e || !c.num) return;
-    put('ix:cert:' + c.id, { codigo: String(c.num).toUpperCase(), dni: e.dni, nombres: e.nom, programaId: pidOf(e.prog), tipo: 'Certificado modular', detalle: [m.cod, m.nombre].filter(Boolean).join(' · '), fecha: String(c.fecha).slice(0, 10), origen: PZ_SRC.cert }); });
-  (X.titulos || []).forEach(t => { const e = E(t.est); if (!e || !t.cod) return;
-    put('ix:tit:' + t.id, { codigo: String(t.cod).toUpperCase(), dni: e.dni, nombres: e.nom, programaId: pidOf(e.prog), tipo: 'Título de Profesional Técnico', detalle: t.resol || '', fecha: String(t.tit || t.culm).slice(0, 10), origen: PZ_SRC.tit }); });
-  R0.forEach(r => { if (r.ref && /^ix:(cert|tit):/.test(r.ref) && !seen.has(r.ref) && r.estado === 'Válido') { r.estado = 'Anulado'; r.motivo = 'Retirado del registro académico'; ch = true; } });
-  return ch;
-}
+// The PHP transaction maintains the registry and preserves issued snapshots.
+// Browser-side catalog synchronization must not rewrite historical documents.
+function pzSyncCerts() { return false; }
 window.pzSyncCerts = pzSyncCerts;
 if (typeof IXHOST === 'object' && IXHOST.saveAcad) { const _sv = IXHOST.saveAcad; IXHOST.saveAcad = a => { try { pzSyncCerts(a); } catch (e) { console.error(e); } return _sv(a); }; }
 if (typeof SPECS === 'object' && SPECS.certificados) { const S0 = SPECS.certificados;
@@ -1254,7 +1241,7 @@ R('servicios/consulta-certificados', (path, q) => {
     const f = $('[data-cq]');
     const sync = () => { const dni = f.t.value === 'dni'; $('[data-cql]', f).textContent = dni ? 'DNI del titular' : 'Código de verificación'; f.v.placeholder = dni ? 'Ej.: 72345678' : 'Ej.: CERT-2025-000123'; f.v.inputMode = dni ? 'numeric' : 'text'; $('[data-cqh]', f).textContent = dni ? 'Se listan todos los documentos emitidos a nombre del titular.' : 'Figura en la parte inferior del documento, junto al código QR.'; };
     $$('[name=t]', f).forEach(x => x.onchange = sync);
-    const lookup = (t, v) => { const result = portalLookup('certificados', v, '', t); show(t, v, result ? (Array.isArray(result) ? result : [result]) : []); };
+    const lookup = (t, v) => { const result = portalLookup('certificados', v, '', t); if (t !== 'codigo') { const box = $('#cap-cq', f); if (box) { delete box.dataset.challenge; delete box.dataset.loading; f.captcha.value = ''; loadCaptcha(box); } } show(t, v, result ? (Array.isArray(result) ? result : [result]) : []); };
     if (pre) lookup('codigo', pre);
     f.onsubmit = e => { e.preventDefault(); const v = f.v.value.trim().toUpperCase(); const er = {}; if (!v) er.v = f.t.value === 'dni' ? 'Ingrese el DNI del titular.' : 'Ingrese el código de verificación.'; else if (f.t.value === 'dni' && !/^\d{8}$/.test(v)) er.v = 'El DNI debe tener 8 dígitos.'; const cap = checkCaptcha(f, 'cap-cq'); if (cap) er.captcha = cap; if (!showErrors(f, er)) return; lookup(f.t.value, v); };
   } };
@@ -1359,13 +1346,13 @@ function pzDocNav(cur) {
   const X = IX && IX.db ? XD() : { certs: [], titulos: [] }; const reg = alive('certificados');
   const it = [['ix-certificados', 'award', 'Certificación modular', `${X.certs.length} certificaciones`, '1. Registra la certificación de cada módulo'],
     ['ix-titulos', 'grad', 'Grados y títulos', `${X.titulos.length} títulos`, '2. Registra los títulos otorgados'],
-    ['certificados', 'shield', 'Verificación de documentos', `${reg.filter(r => r.estado === 'Válido').length} válidos · ${reg.filter(r => r.estado !== 'Válido').length} anulados`, '3. Registro único: se verifica y se anula aquí']];
+    ['certificados', 'shield', 'Constancias / Certificados', `${reg.filter(r => r.estado === 'Válido').length} válidos · ${reg.filter(r => r.estado !== 'Válido').length} anulados`, '3. Registra constancias y certificados de cursos']];
   const ok = m => typeof can !== 'function' || can(m);
   return `<nav class="pz-dnav" aria-label="Certificados y títulos">${it.filter(x => ok(x[0])).map(([m, i, l, n, d]) => `<a href="#/admin/${m}" class="${m === cur ? 'on' : ''}" ${m === cur ? 'aria-current="page"' : ''}>${sic(i, 18)}<span><b>${l}</b><small>${d}</small><em>${n}</em></span></a>`).join('')}<a class="pub" href="#/servicios/consulta-certificados" target="_blank" rel="noopener">${sic('external', 16)}<span><b>Consulta pública</b><small>Así lo ve el ciudadano</small></span></a></nav>`;
 }
 if (typeof IXHOST === 'object' && IXHOST.head) { const _hd = IXHOST.head;
   IXHOST.head = (title, desc, actions, code) => { const t = String(title).replace(/<[^>]+>/g, '');
-    const k = t === 'Constancias y certificados' ? 'ix-certificados' : t === 'Grados y títulos' ? 'ix-titulos' : null;
+    const k = ['Constancias y certificados','Certificación modular'].includes(t) ? 'ix-certificados' : t === 'Grados y títulos' ? 'ix-titulos' : null;
     if (!k || !currentUser() || isCommunity()) return _hd(title, desc, actions, code);
     const tt = k === 'ix-certificados' ? 'Certificación modular' : t;
     return admHead(tt, desc || '', actions || '', k === 'ix-certificados' ? 'award' : 'grad', [['Certificados y títulos'], [tt]]) + pzDocNav(k); }; }
