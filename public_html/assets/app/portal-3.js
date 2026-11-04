@@ -154,7 +154,8 @@ const MPV_ESTADOS_PUB = { Recibido: 'Recibido por Mesa de Partes', Derivado: 'De
 function horarioBox(compact) {
   const c = mpvCfg(); const now = new Date(); const r = recepcionDe(now.toISOString());
   const st = r.enHorario ? `<span class="pz-live ok">● En horario de atención: tu documento se recibe en este momento.</span>` : `<span class="pz-live off">● Fuera del horario de atención: puedes registrar tu documento; se considerará recibido el <b>${fdate(r.fecha, true)}</b>.</span>`;
-  return `<section class="pz-horario ${compact ? 'compact' : ''}" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención</span><b>${esc(c.dias)}</b><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
+  if (compact) return `<section class="pz-horario compact" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención · ${esc(c.dias)}</span><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
+  return `<section class="pz-horario" aria-label="Horario de atención de la Mesa de Partes Virtual"><div class="pz-h-ic">${ic('clock')}</div><div><span class="pz-k">Horario de atención</span><b>${esc(c.dias)}</b><b class="pz-hh">${fmt12(c.horaIni)} – ${fmt12(c.horaFin)}</b>${st}</div></section>`;
 }
 function mpvForm() {
   const c = mpvCfg(); const exts = c.formatos;
@@ -168,15 +169,15 @@ function mpvForm() {
     <div class="field full" data-jur hidden><label for="mv-rs">Razón social / nombre de la entidad <span class="req">*</span></label><input id="mv-rs" name="razon" maxlength="150"></div>
     <div class="field"><label for="mv-e">Correo electrónico (notificaciones) <span class="req">*</span></label><input id="mv-e" name="correo" type="email" maxlength="120" autocomplete="email"></div>
     <div class="field"><label for="mv-t">Teléfono / celular <span class="req">*</span></label><input id="mv-t" name="telefono" maxlength="15" inputmode="tel" autocomplete="tel"></div>
-    <div class="field full"><label for="mv-dir">Dirección (opcional)</label><input id="mv-dir" name="direccion" maxlength="160" autocomplete="street-address"></div>
+    <div class="field full w2"><label for="mv-dir">Dirección (opcional)</label><input id="mv-dir" name="direccion" maxlength="160" autocomplete="street-address"></div>
    </div>
    <div class="pz-sec-h"><span>2</span><h2>Datos del documento</h2></div><div class="form-grid">
     <div class="field"><label for="mv-tt">Tipo de documento a presentar <span class="req">*</span></label><select id="mv-tt" name="tipoTramite"><option value="">Seleccione</option>${mpvTipos().map(t => `<option>${esc(t)}</option>`).join('')}</select></div>
     <div class="field"><label for="mv-ref">N.º o referencia de su documento</label><input id="mv-ref" name="docRef" maxlength="80" placeholder="Ej.: Oficio N.º 012-2026-MPP"></div>
+    <div class="field"><label for="mv-fo">N.º de folios <span class="req">*</span></label><input id="mv-fo" name="folios" type="number" min="1" max="2000" value="1"></div>
     <div class="field full"><label for="mv-ar">Área de destino <span class="req">*</span></label><select id="mv-ar" name="areaDestino">${areaOptions('', { skipMP: true })}</select><div class="hint" data-arhint>La Mesa de Partes Virtual recibe el documento y lo deriva al área seleccionada.</div></div>
     <div class="field full"><label for="mv-as">Asunto <span class="req">*</span></label><textarea id="mv-as" name="asunto" maxlength="600" style="min-height:76px" data-count></textarea><div class="hint"><span data-c>0</span>/600 caracteres</div></div>
-    <div class="field"><label for="mv-fo">N.º de folios <span class="req">*</span></label><input id="mv-fo" name="folios" type="number" min="1" max="2000" value="1"></div>
-    <div class="field"><label for="mv-ob">Observaciones (opcional)</label><input id="mv-ob" name="observaciones" maxlength="250"></div>
+    <div class="field full"><label for="mv-ob">Observaciones (opcional)</label><input id="mv-ob" name="observaciones" maxlength="250"></div>
    </div>
    <div class="pz-sec-h"><span>3</span><h2>Archivos adjuntos</h2></div>
     <div class="field"><label for="mv-x">Documento principal y anexos <span class="req">*</span></label><input id="mv-x" type="file" name="archivos" multiple accept="${exts.map(e => '.' + e).join(',')}"><div class="hint">Formatos permitidos: ${exts.map(e => e.toUpperCase()).join(', ')} · tamaño máximo ${c.maxMB} MB por archivo · hasta ${c.maxArchivos} archivos.</div><ul class="pz-files" data-files></ul></div>
@@ -195,16 +196,15 @@ function mpvInfo() {
   return `<section class="card cb" style="padding:20px"><h2 style="font-size:18px;margin-top:0">¿Cómo funciona?</h2><ol class="pz-steps"><li><b>Registra</b> tus datos, el tipo de documento, el área de destino y adjunta tus archivos.</li><li><b>Recibe</b> al instante tu N.º de expediente (${esc(c.prefijo)}-AAAA-NNNNNN), tu N.º de documento (DOC-AAAA-NNNNNN) y el cargo de recepción en PDF.</li><li><b>Mesa de Partes</b> deriva tu documento al área competente. Consulta las novedades en el seguimiento; el envío por correo está pendiente de habilitación.</li><li><b>Consulta</b> el estado en cualquier momento con tu N.º de expediente y tu DNI/RUC o el código de verificación.</li></ol>
    <h3>Tipos de documento admitidos y plazos referenciales</h3><div class="tbl-wrap"><table class="tbl light no-rt"><thead><tr><th>Tipo de documento</th><th class="num">Plazo (días hábiles)</th></tr></thead><tbody>${mpvTipos().map(t => `<tr><td>${esc(t)}</td><td class="num">${mpvPlazo(t)}</td></tr>`).join('')}</tbody></table></div>
    <h3>Recepción fuera del horario</h3><p>Puedes registrar documentos las 24 horas. Los presentados después de las ${fmt12(c.horaFin)}, en sábado, domingo o feriado se consideran recibidos el <b>siguiente día hábil a las ${fmt12(c.horaIni)}</b>; los presentados antes de las ${fmt12(c.horaIni)} de un día hábil, ese mismo día a las ${fmt12(c.horaIni)}. El cargo indica la fecha y hora exacta de presentación y la de recepción administrativa.</p>
+   <h3>Contacto</h3><p>✉️ <a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a> · 📞 ${esc(c.telefono)} (Secretaría de Dirección) · 📍 ${esc(inst().direccion)}</p>
    <h3>Áreas receptoras</h3><div class="tbl-wrap"><table class="tbl light"><thead><tr><th>Nivel</th><th>Área / cargo / órgano</th><th>Correo institucional</th></tr></thead><tbody>${as.map(a => `<tr><td>${esc(a.nivel || '')}</td><td>${esc(a.nombre)}</td><td><a href="mailto:${esc(a.correo)}">${esc(a.correo)}</a></td></tr>`).join('')}</tbody></table></div></section>`;
 }
 R('servicios/mesa-de-partes', (path, q0) => {
   const c = mpvCfg(); const t0 = q0 && q0.get && q0.get('tab'); const cur = t0 === 'consulta' || (q0 && q0.get && q0.get('exp')) ? 'c' : t0 === 'info' ? 'i' : 'n';
-  const body = `${svNav('mesa-de-partes')}${svHead('mpv', [['file', `${mpvTipos().length} tipos de documento`], ['upload', `Hasta ${c.maxArchivos} archivos de ${c.maxMB} MB`], ['shield', 'Cargo en PDF con código QR']])}
-   ${horarioBox()}
-   ${svSteps([['Registra', 'Tus datos, el documento y los archivos.'], ['Recibe tu cargo', 'N.º de expediente y cargo en PDF al instante.'], ['Derivación', 'Mesa de Partes lo envía al área competente.'], ['Consulta', 'Sigue el estado con tu N.º de expediente.']])}
+  const body = `${svNav('mesa-de-partes')}<div class="pz-mpv-top">${svHead('mpv', null, true)}${horarioBox(true)}</div>
    ${svTabs([['n', 'send', 'Nuevo trámite'], ['c', 'search', 'Consultar expediente'], ['i', 'book', 'Información']], cur)}
    <div data-pane="n" ${cur === 'n' ? '' : 'hidden'}>${mpvForm()}</div><div data-pane="c" ${cur === 'c' ? '' : 'hidden'}>${mpvConsulta()}</div><div data-pane="i" ${cur === 'i' ? '' : 'hidden'}>${mpvInfo()}</div>`;
-  const side = `<section class="side-box"><h2>Contacto</h2><div class="pad" style="font-size:13.5px">✉️ <a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a><br>📞 ${esc(c.telefono)} (Secretaría de Dirección)<br>📍 ${esc(inst().direccion)}</div></section><section class="side-box"><h2>Numeración</h2><div class="pad" style="font-size:13px">Expediente: <b class="mono">${esc(c.prefijo)}-${yearNow()}-000001</b><br>Documento: <b class="mono">DOC-${yearNow()}-000001</b><br><span style="color:var(--muted)">Únicos, correlativos y reiniciados cada año.</span></div></section>`;
+  const side = null;
   const html = shell(path, { title: 'Mesa de Partes Virtual', desc: `Mesa de Partes Virtual del ${inst().nombre}: registro de documentos, cargo de recepción y seguimiento de expedientes.`, crumbs: [['Servicios', '#/servicios'], ['Mesa de Partes Virtual']], banner: { kicker: 'Servicios en línea', title: 'Mesa de Partes Virtual', text: 'Tus trámites en línea, con cargo de recepción inmediato' }, side, body });
   return { html, after: () => bindMpv(q0) };
 });
@@ -433,7 +433,7 @@ function lrForm() {
   return `<form class="pz-lr card" data-lr2 novalidate>
    <div class="pz-lr-h">${ic('book')}<div><h2>Registro de reclamo o queja</h2><small>Los campos marcados con * son obligatorios.</small></div></div>
    <div class="cb" style="padding:20px">
-    <h3 class="pz-sub">${S16('user')} Datos del usuario</h3><div class="form-grid">
+    <h3 class="pz-sub">${S16('user')} Datos del usuario</h3><div class="form-grid g4">
      <div class="field"><label for="l2-td">Tipo de documento <span class="req">*</span></label><select id="l2-td" name="tipoDoc"><option value="">Seleccione</option><option>DNI</option><option value="CE">Carné de extranjería</option><option>Pasaporte</option><option>RUC</option></select></div>
      <div class="field"><label for="l2-nd">Número de documento <span class="req">*</span></label><input id="l2-nd" name="numDoc" maxlength="12" placeholder="Ingrese su documento" autocomplete="off"></div>
      <div class="field"><label for="l2-no">Nombres <span class="req">*</span></label><input id="l2-no" name="nombresP" maxlength="80" placeholder="Ingrese sus nombres" autocomplete="given-name"></div>
@@ -462,8 +462,7 @@ function lrForm() {
 }
 function lrPage(path, q0) {
   const c = lrCfg(); const i = inst(); const t0 = q0 && q0.get && q0.get('tab'); const cur = t0 === 'consulta' || (q0 && q0.get && q0.get('rcl')) ? 'c' : t0 === 'info' ? 'i' : 'r';
-  const body = `${svNav('libro-de-reclamaciones')}${svHead('lr', [['clock', `Reclamos: ${c.plazoReclamo} días hábiles`], ['clock', `Quejas: ${c.plazoQueja} días hábiles`], ['file', 'Constancia en PDF']])}
-   ${svSteps([['Registra', 'Elige reclamo o queja y describe lo sucedido.'], ['Recibe tus códigos', 'Seguimiento RCL, verificación y constancia PDF con QR.'], ['Atención', 'El responsable lo deriva al área competente.'], ['Respuesta', 'Consulta la respuesta en el portal dentro del plazo.']])}
+  const body = `${svNav('libro-de-reclamaciones')}<div class="pz-mpv-top">${svHead('lr', null, true)}${svKeyBox('clock', 'Plazos de respuesta', `Reclamos: ${c.plazoReclamo} días · Quejas: ${c.plazoQueja} días`, 'Días hábiles · constancia en PDF con código QR')}</div>
    ${svTabs([['r', 'edit', 'Registrar reclamo o queja'], ['c', 'search', 'Consultar estado'], ['i', 'book', 'Información']], cur)}
    <div data-pane="r" ${cur === 'r' ? '' : 'hidden'}>${lrForm()}</div>
    <div data-pane="c" ${cur === 'c' ? '' : 'hidden'}><section class="card cb pz-qf"><div class="pz-qf-h">${sic('search', 20)}<div><h2>Consultar el estado de mi reclamo o queja</h2><small>Ingresa el seguimiento RCL y el documento completo del reclamante, o el código de verificación de tu constancia.</small></div></div><form data-lrq2 class="form-grid" novalidate><div class="field"><label for="lq2-c">Código de seguimiento</label><input id="lq2-c" name="codigo" placeholder="RCL-${yearNow()}-00001" autocomplete="off"></div><div class="field"><label for="lq2-d">Documento del reclamante o código de verificación</label><input id="lq2-d" name="doc" maxlength="20" placeholder="DNI de 8 dígitos o verificación de 16 caracteres" autocomplete="off"></div><div class="full"><button class="btn">${S16('search')} Consultar</button></div></form><div id="lq2-r" aria-live="polite"></div></section></div>
@@ -471,11 +470,9 @@ function lrPage(path, q0) {
      <div class="pz-lr-2"><div class="rec">${sic('file', 22)}<b>Reclamo</b><p>Disconformidad relacionada con el servicio educativo o con los trámites brindados por el instituto.</p><small>Plazo de respuesta: ${c.plazoReclamo} días hábiles</small></div><div class="que">${sic('alert', 22)}<b>Queja</b><p>Malestar o descontento respecto a la atención recibida: trato, demora, falta de información, etc.</p><small>Plazo de respuesta: ${c.plazoQueja} días hábiles</small></div></div>
      <h3>Flujo de atención</h3><ol class="pz-flow"><li><b>Recibido</b><span>Registro y constancia PDF descargable.</span></li><li><b>Derivado</b><span>El responsable lo deriva al área competente.</span></li><li><b>En atención</b><span>El área evalúa y propone la respuesta.</span></li><li><b>Atendido</b><span>La respuesta queda disponible en el seguimiento del portal.</span></li></ol>
      <h3>Responsable de la atención</h3><p><b>${esc(c.responsable || 'Responsable pendiente de asignación')}</b> · ${esc(c.cargo)}<br><a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a></p>
-     <h3>A tener en cuenta</h3><ul><li>El plazo se cuenta desde el día hábil siguiente al registro.</li><li>La formulación del reclamo no impide acudir a otras vías de solución de controversias.</li><li>Base normativa: Decreto Supremo N.º 042-2011-PCM, que obliga a las entidades públicas a contar con un Libro de Reclamaciones.</li></ul></section></div>
-   <div class="pz-info3"><div>${ic('shield')}<b>Registro seguro</b><span>Tu información se registra de manera segura y protegida (Ley N.º 29733).</span></div><div>${ic('search')}<b>Seguimiento</b><span>Con tu código consultas el estado en cualquier momento.</span></div><div>${ic('mail')}<b>Notificación</b><span>Consulta el estado y la respuesta con tu código de seguimiento.</span></div></div>`;
-  const side = `<section class="side-box"><h2>Responsable de la atención</h2><div class="pad" style="font-size:13.5px"><b>${esc(c.responsable || 'Responsable pendiente de asignación')}</b><br>${esc(c.cargo)}<br>✉️ <a href="mailto:${esc(c.correo)}">${esc(c.correo)}</a></div></section>
-   <section class="side-box"><h2>Plazos de respuesta</h2><div class="pad" style="font-size:13.5px"><ul style="padding-left:18px;margin:0"><li>Reclamos: hasta <b>${c.plazoReclamo} días hábiles</b>.</li><li>Quejas: hasta <b>${c.plazoQueja} días hábiles</b>.</li></ul></div></section>
-   <section class="side-box"><h2>¿Necesitas ayuda?</h2><div class="pad" style="font-size:13.5px">📞 ${esc(i.telefono)}<br>✉️ ${esc(c.correo)}<br>🕗 ${esc(i.horario)}</div></section>`;
+     <h3>¿Necesitas ayuda?</h3><p>📞 ${esc(i.telefono)} · 🕗 ${esc(i.horario)}</p>
+     <h3>A tener en cuenta</h3><ul><li>El plazo se cuenta desde el día hábil siguiente al registro.</li><li>La formulación del reclamo no impide acudir a otras vías de solución de controversias.</li><li>Base normativa: Decreto Supremo N.º 042-2011-PCM, que obliga a las entidades públicas a contar con un Libro de Reclamaciones.</li></ul><div class="pz-info3"><div>${ic('shield')}<b>Registro seguro</b><span>Tu información se registra de manera segura y protegida (Ley N.º 29733).</span></div><div>${ic('search')}<b>Seguimiento</b><span>Con tu código consultas el estado en cualquier momento.</span></div><div>${ic('mail')}<b>Notificación</b><span>Consulta el estado y la respuesta con tu código de seguimiento.</span></div></div></section></div>`;
+  const side = null;
   const html = shell(path, { title: 'Libro de Reclamaciones', desc: `Libro de Reclamaciones Virtual del ${inst().nombre}: registra tu reclamo o queja y consulta su estado.`, crumbs: [['Servicios', '#/servicios'], ['Libro de Reclamaciones']], banner: { kicker: 'Servicios en línea', title: 'Libro de Reclamaciones', text: 'Porque un mejor servicio también se construye escuchándote' }, side, body });
   return { html, after: () => bindLr2(q0) };
 }
@@ -1148,10 +1145,12 @@ function svNav(active) {
   return `<nav class="pz-svnav" aria-label="Servicios en línea"><a href="#/servicios" class="pz-svnav-h ${active === '' ? 'on' : ''}" title="Servicios en línea" aria-label="Servicios en línea">${sic('home', 16)}</a>${it.map(([s, l, i]) => `<a href="#/servicios/${s}" class="${s === active ? 'on' : ''}" ${s === active ? 'aria-current="page"' : ''}>${sic(i, 16)}<span>${l}</span></a>`).join('')}</nav>`;
 }
 /* cabecera del módulo */
-function svHead(k, chips) {
+function svHead(k, chips, compact) {
   const m = SV_MODS[k];
-  return `<header class="pz-mh t-${m.tone}"><span class="pz-mh-ic">${sic(m.icon, 30)}</span><div class="pz-mh-tx"><span class="pz-mh-k">Servicios en línea · ${esc(inst().nombreCorto)}</span><h1>${esc(m.title)}</h1><p>${esc(m.text)}</p>${chips && chips.length ? `<ul class="pz-mh-ch">${chips.map(([i, t]) => `<li>${sic(i, 15)}<span>${t}</span></li>`).join('')}</ul>` : ''}</div></header>`;
+  return `<header class="pz-mh t-${m.tone}${compact ? ' compact' : ''}"><span class="pz-mh-ic">${sic(m.icon, 30)}</span><div class="pz-mh-tx"><span class="pz-mh-k">Servicios en línea · ${esc(inst().nombreCorto)}</span><h1>${esc(m.title)}</h1><p>${esc(m.text)}</p>${chips && chips.length ? `<ul class="pz-mh-ch">${chips.map(([i, t]) => `<li>${sic(i, 15)}<span>${t}</span></li>`).join('')}</ul>` : ''}</div></header>`;
 }
+/* recuadro compacto de dato clave junto a la cabecera */
+const svKeyBox = (icon, kicker, big, note, label) => `<section class="pz-horario compact" aria-label="${esc(label || kicker)}"><div class="pz-h-ic">${ic(icon)}</div><div><span class="pz-k">${kicker}</span><b class="pz-hh">${big}</b>${note ? `<span class="pz-live off">${note}</span>` : ''}</div></section>`;
 /* pasos del servicio */
 const svSteps = steps => `<ol class="pz-mst">${steps.map(([t, d], i) => `<li><span>${i + 1}</span><div><b>${t}</b><small>${d}</small></div></li>`).join('')}</ol>`;
 /* pestañas del módulo (compatibles con los enlazadores existentes: data-tab / data-pane) */
@@ -1203,15 +1202,15 @@ if (typeof SPECS === 'object' && SPECS.certificados) { const S0 = SPECS.certific
 R('servicios/consulta-certificados', (path, q) => {
   const pre = (q && q.get ? q.get('codigo') || '' : '').trim().toUpperCase(); const i = inst();
   const nCert = coll('certificados').length;
-  const body = `${svNav('consulta-certificados')}${svHead('cert', [['zap', 'Resultado inmediato'], ['shield', 'Datos personales protegidos'], ['table', 'Código QR en cada documento']])}
+  const body = `${svNav('consulta-certificados')}<div class="pz-mpv-top">${svHead('cert', null, true)}${svKeyBox('zap', 'Verificación en línea', 'Resultado inmediato', 'Código QR en cada documento · datos personales protegidos')}</div>
    <div class="pz-cq-wrap"><form class="card cb pz-cq" data-cq novalidate><h2>${sic('search', 20)} Verificar un documento</h2>
      <div class="pz-seg" role="radiogroup" aria-label="Buscar por"><label><input type="radio" name="t" value="codigo" checked><span>${sic('key', 15)} Código de verificación</span></label><label><input type="radio" name="t" value="dni"><span>${sic('user', 15)} DNI del titular</span></label></div>
      <div class="field"><label for="cq-v" data-cql>Código de verificación</label><input id="cq-v" name="v" autocomplete="off" placeholder="Ej.: CERT-2025-000123" value="${esc(pre)}"><div class="hint" data-cqh>Figura en la parte inferior del documento, junto al código QR.</div></div>
      ${captchaHTML('cap-cq')}
      <button class="btn pz-cq-b">${sic('shield', 17)} Verificar autenticidad</button></form>
-    <aside class="pz-cq-i"><h3>¿Qué puedo verificar?</h3><ul><li>${sic('award', 16)} Títulos de Profesional Técnico</li><li>${sic('file', 16)} Certificados de estudios y modulares</li><li>${sic('clipboard', 16)} Constancias emitidas por el instituto</li></ul><h3>¿Tienes el documento impreso?</h3><p>Escanea su código QR con la cámara del celular: se abrirá esta página con el resultado.</p><p class="pz-cq-n">Por seguridad, el DNI del titular se muestra parcialmente oculto (Ley N.º 29733).</p></aside></div>
+    <section class="pz-cq-i"><div><h3>¿Qué puedo verificar?</h3><ul><li>${sic('award', 16)} Títulos de Profesional Técnico</li><li>${sic('file', 16)} Certificados de estudios y modulares</li><li>${sic('clipboard', 16)} Constancias emitidas por el instituto</li></ul></div><div><h3>¿Tienes el documento impreso?</h3><p>Escanea su código QR con la cámara del celular: se abrirá esta página con el resultado.</p><p class="pz-cq-n">Por seguridad, el DNI del titular se muestra parcialmente oculto (Ley N.º 29733).</p></div><div><h3>Emisión de documentos</h3><p>Para solicitar un certificado o una constancia, presenta tu solicitud por la <a href="#/servicios/mesa-de-partes">Mesa de Partes Virtual</a>. Costos según el <a href="#/transparencia/tupa">TUPA vigente</a>.</p><h3>Secretaría Académica</h3><p>📞 ${esc(i.telefono)} · ✉️ <a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a><br>🕗 ${esc(i.horario)}</p></div></section></div>
    <div id="cq-r" aria-live="polite"></div>`;
-  const side = `<section class="side-box"><h2>Emisión de documentos</h2><div class="pad" style="font-size:13.5px">Para solicitar un certificado o una constancia, presenta tu solicitud por la <a href="#/servicios/mesa-de-partes">Mesa de Partes Virtual</a>.<br><br>Costos según el <a href="#/transparencia/tupa">TUPA vigente</a>.</div></section><section class="side-box"><h2>Secretaría Académica</h2><div class="pad" style="font-size:13.5px">📞 ${esc(i.telefono)}<br>✉️ <a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a><br>🕗 ${esc(i.horario)}</div></section>`;
+  const side = null;
   const html = shell(path, { title: 'Consulta de certificados', desc: `Verificación en línea de títulos, certificados y constancias del ${inst().nombre}.`, crumbs: [['Servicios', '#/servicios'], ['Consulta de certificados']], banner: { kicker: 'Servicios en línea', title: 'Consulta de certificados', text: 'Verificación de autenticidad en línea' }, side, body });
   const card = d => `<article class="pz-cert ${d.ok ? 'ok' : 'bad'}" role="status"><div class="pz-cert-s">${sic(d.ok ? 'check' : 'x', 30)}<b>${d.ok ? 'DOCUMENTO VÁLIDO' : 'DOCUMENTO ANULADO'}</b><small>${d.ok ? 'Emitido por el ' + esc(i.nombreCorto) : 'Este documento no tiene validez'}</small></div>
      <dl><dt>Tipo de documento</dt><dd>${esc(d.tipo)}</dd>${d.det ? `<dt>${/T[ií]tulo/.test(d.tipo) ? 'Resolución' : 'Detalle'}</dt><dd>${esc(d.det)}</dd>` : ''}<dt>Código</dt><dd class="mono">${esc(d.cod)}</dd>${d.titular ? `<dt>Titular</dt><dd><b>${esc(d.titular)}</b></dd>` : ''}${d.dni ? `<dt>DNI</dt><dd class="mono">${esc(maskDni(d.dni))}</dd>` : ''}${d.prog ? `<dt>Programa de estudios</dt><dd>${esc(d.prog)}</dd>` : ''}<dt>Fecha de emisión</dt><dd>${esc(d.fecha)}</dd>${d.motivo ? `<dt>Motivo de anulación</dt><dd>${esc(d.motivo)}</dd>` : ''}${d.origen ? `<dt>Registro</dt><dd>${esc(d.origen)}</dd>` : ''}<dt>Verificado el</dt><dd>${fdate(new Date().toISOString(), true)}</dd></dl></article>`;
@@ -1272,7 +1271,7 @@ R('servicios/bolsa-laboral', (path, q) => {
   const emps = D.empresas.filter(e => e.validada); const vac = ofs.reduce((a, o) => a + (+o.vac || 0), 0);
   const tab0 = q && q.get && (q.get('tab') === 'empresas' || q.get('registro') === '1') ? 'e' : q && q.get && q.get('tab') === 'como' ? 'i' : 'o';
   const progs = [...new Set(ofs.map(o => o.prog).filter(Boolean))].map(id => xprog(id));
-  const body = `${svNav('bolsa-laboral')}${svHead('bolsa', [['briefcase', `<b>${ofs.length}</b> ofertas vigentes`], ['users', `<b>${vac}</b> vacantes`], ['building', `<b>${emps.length}</b> empresas aliadas`]])}
+  const body = `${svNav('bolsa-laboral')}<div class="pz-mpv-top">${svHead('bolsa', null, true)}${svKeyBox('briefcase', 'Bolsa Laboral en cifras', `${ofs.length} ofertas · ${vac} vacantes`, `${emps.length} empresa(s) aliada(s) · responsable: ${esc(cfg.responsable || 'pendiente de asignación')}`)}</div>
    ${svTabs([['o', 'briefcase', 'Ofertas laborales'], ['e', 'building', 'Para empresas'], ['i', 'book', '¿Cómo postular?']], tab0)}
    <div data-pane="o" ${tab0 === 'o' ? '' : 'hidden'}>
     <div class="pz-of-f" role="search"><div class="pz-in2">${sic('search', 17)}<input type="search" data-ofq placeholder="Buscar por puesto, empresa o palabra clave" aria-label="Buscar ofertas"></div>
@@ -1292,7 +1291,7 @@ R('servicios/bolsa-laboral', (path, q) => {
     ${svSteps([['Busca la oferta', 'Filtra por programa de estudios o modalidad.'], ['Presiona «Postular»', 'El sistema te lleva al inicio de sesión de la intranet.'], ['Inicia sesión', 'Con tu DNI y contraseña de estudiante o egresado.'], ['Confirma', 'Tu postulación se envía con tu perfil y tu CV.']])}
     <section class="card cb pz-bl-faq"><h2>Preguntas frecuentes</h2><h3>¿Quién puede postular?</h3><p>Estudiantes y egresados de ${esc(inst().nombre)} con cuenta en la intranet. Si aún no tienes cuenta, solicítala en Secretaría Académica.</p><h3>¿Dónde subo mi CV?</h3><p>En la intranet, en Bolsa laboral › Mi perfil. Es obligatorio para postular.</p><h3>¿Cómo sé si me seleccionaron?</h3><p>En la intranet verás el estado de cada postulación (Recibida, En revisión, Seleccionado) y recibirás un aviso.</p><h3>Soy empresa, ¿cuánto cuesta?</h3><p>Nada. El registro y la publicación de ofertas son gratuitos.</p></section>
    </div>`;
-  const side = `<section class="side-box"><h2>Bolsa Laboral en cifras</h2><div class="pad pz-bl-kp"><div><b>${ofs.length}</b><span>ofertas vigentes</span></div><div><b>${vac}</b><span>vacantes</span></div><div><b>${emps.length}</b><span>empresas aliadas</span></div></div></section><section class="side-box"><h2>Responsable</h2><div class="pad" style="font-size:13.5px"><b>${esc(cfg.responsable || 'Responsable pendiente de asignación')}</b><br><a href="mailto:${esc(cfg.correo)}">${esc(cfg.correo)}</a></div></section>`;
+  const side = null;
   const html = shell(path, { title: 'Bolsa Laboral', desc: `Bolsa Laboral del ${inst().nombre}: ofertas de empleo y prácticas para estudiantes y egresados, y registro libre de empresas.`, crumbs: [['Servicios', '#/servicios'], ['Bolsa Laboral']], banner: { kicker: 'Servicios en línea', title: 'Bolsa Laboral', text: 'Conectamos talento con empresas' }, side, body });
   return { html, after: () => {
     const showTab = k => { $$('.pz-mt [data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === k)); $$('[data-pane]').forEach(p => p.hidden = p.dataset.pane !== k); if (k === 'e') { const b = $('[data-tab="pubbolsa:empresa"]'); if (b && b.getAttribute('aria-selected') !== 'true') b.click(); } };
