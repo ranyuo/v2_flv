@@ -200,7 +200,7 @@ const DISENOS = [
   ['clasico', 'Clásico institucional', 'Diseño original del portal: cabecera institucional, carrusel y bloques en tarjetas.'],
   ['moderno', 'Moderno', 'Portada a pantalla completa, menú flotante con efecto vidrio, tarjetas amplias con esquinas redondeadas y sombras suaves.'],
   ['editorial', 'Editorial', 'Estilo de revista digital: tipografía grande, líneas finas, fondo claro y la noticia principal destacada en grande.'],
-  ['universitario', 'Universitario', 'Estructura de portal universitario: cabecera oscura con logotipo en bloque blanco, portada a pantalla completa con titular resaltado, programas con íconos circulares, franjas oscuras con trama, paneles blancos con carruseles y pie oscuro. El menú principal se mantiene.'],
+  ['universitario', 'Universitario', 'Portal de estilo universitario: cabecera oscura con logotipo en bloque blanco, programas con íconos circulares, franjas oscuras y carruseles en paneles. El menú principal no cambia.'],
 ];
 function applyTheme() {
   if (!DB || !DB.config) return; ensureThemes(); const t = DB.config.temas[DB.config.tema];
@@ -671,13 +671,13 @@ function footerHTML() {
   ${DB.config.whatsapp.activo && DB.config.whatsapp.numero ? `<a class="wa" href="https://wa.me/${esc(DB.config.whatsapp.numero)}?text=${encodeURIComponent(DB.config.whatsapp.mensaje)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${bic('whatsapp')}</a>` : ''}`;
 }
 /* ===== Diseño «Universitario» (cabecera, portada y pie propios; el menú es el mismo navModel) ===== */
-const isUni = () => !!(DB && DB.config && DB.config.diseno === 'universitario');
-const U_IC = { coffee: 'food', settings: 'gear', smile: 'heart' };
+const isUni = () => !!(DB && DB.config && DB.config.diseno === 'universitario') && !document.body.classList.contains('is-admin');
+const U_IC = { coffee: 'food', settings: 'gear', smile: 'tool', cog: 'gear', dental: 'tool' };
 const uIc = n => ic(ICONS[n] ? n : (U_IC[n] || 'grad'));
 const uSoc = () => { const r = DB.config.redes || {}; return ['facebook', 'youtube', 'instagram', 'tiktok'].filter(k => r[k]).map(k => `<a href="${esc(r[k])}" target="_blank" rel="noopener noreferrer" aria-label="${k} (se abre en una pestaña nueva)">${bic(k)}</a>`).join(''); };
 const uHead = (title, text, btn, tag = 'h2') => `<div class="u-h"><div><${tag}>${title}</${tag}>${text ? `<p>${text}</p>` : ''}</div>${btn || ''}</div>`;
 const uBtn = (href, label) => href ? `<a class="u-out" ${linkAttrs(href)}>${esc(label)}</a>` : '';
-const uCar = (items, label) => `<div class="pcar u-car" data-pcar><button type="button" class="pcar-b prev" data-pcar-b="-1" aria-label="Anterior">‹</button><div class="pcar-t" tabindex="0" role="region" aria-label="${esc(label)} (desplázate para ver más)">${items.map(x => `<div class="pcar-i">${x}</div>`).join('')}</div><button type="button" class="pcar-b next" data-pcar-b="1" aria-label="Siguiente">›</button></div>`;
+const uCar = (items, label, auto = false) => `<div class="pcar u-car" data-pcar${auto ? '' : ' data-pcar-static'}><button type="button" class="pcar-b prev" data-pcar-b="-1" aria-label="Anterior">‹</button><div class="pcar-t" tabindex="0" role="region" aria-label="${esc(label)} (desplázate para ver más)">${items.map(x => `<div class="pcar-i">${x}</div>`).join('')}</div><button type="button" class="pcar-b next" data-pcar-b="1" aria-label="Siguiente">›</button></div>`;
 const uArrow = () => `<span class="u-sq" aria-hidden="true">${ic('arrow')}</span>`;
 function uniHeader(path, nav, cur) {
   const i = inst();
@@ -720,21 +720,21 @@ function uniBlocks(base, h, i) {
     bienvenida: () => { const pr = page('presentacion'); if (!pr || !isPub(pr)) return ''; const ps2 = (pr.contenido.match(/<p>[\s\S]*?<\/p>/g) || []).slice(0, 2).join('');
       return `<section class="u-band u-quote"><div class="wrap u-2"><div><div class="u-h u-h-d"><div><span class="u-k">Bienvenida</span><h2>Mensaje de la Dirección General</h2></div></div><div class="prose">${sanitize(ps2)}</div><a class="u-out u-out-w" href="#/nosotros/presentacion">Leer presentación completa</a></div>
         <figure class="u-ph"><img src="${img(dir && dir.foto)}" alt="Fotografía de ${esc(fullName(dir))}" loading="lazy"><figcaption><b>${esc(fullName(dir))}</b><em>${esc(dirJ.cargo || 'Dirección General')}</em></figcaption></figure></div></section>`; },
-    cifras: () => `<section class="u-light u-num" aria-label="Cifras institucionales"><div class="wrap"><div class="u-wm" aria-hidden="true">${esc(i.logoSigla || '')}</div><div class="u-numh"><span class="u-big">${esc(cifra('auto:programas'))}</span><h2>programas de estudio para tu futuro profesional</h2></div><div class="u-nums">${h.cifras.map(x => `<div class="stat"><b>${esc(cifra(x.valor))}</b><span>${esc(x.label)}</span><small>Corte: ${esc(x.corte)}</small></div>`).join('')}</div></div></section>`,
+    cifras: () => `<section class="u-light u-num" aria-label="Cifras institucionales"><div class="wrap"><div class="u-wm" aria-hidden="true">${esc(i.logoSigla || '')}</div>${(() => { const a = +cifra('auto:anios'); return a > 0 ? `<div class="u-numh"><span class="u-big">${a}</span><h2>años formando profesionales técnicos</h2></div>` : `<div class="u-numh"><span class="u-big">${esc(cifra('auto:programas'))}</span><h2>programas de estudio para tu futuro profesional</h2></div>`; })()}<div class="u-nums">${h.cifras.map(x => `<div class="stat"><b>${esc(cifra(x.valor))}</b><span>${esc(x.label)}</span><small>Corte: ${esc(x.corte)}</small></div>`).join('')}</div></div></section>`,
     programas: () => { const card = p => `<article class="u-pc"><img src="${img(p.imagen)}" alt="" loading="lazy"><div><h3><a href="#/programas/${esc(p.slug)}">${esc(p.nombre)}</a></h3><p>${esc(clamp(p.resumen || '', 90))}</p><span class="u-link">Ver programa</span></div></article>`;
-      return `<section class="u-pan-s"><div class="u-pan">${uHead('Programas de estudio', 'Formación profesional técnica de 3 años con título a nombre de la Nación.', uBtn('#/programas', 'Ver todos los programas'))}${progView() === 'carrusel' && ps.length > 1 ? uCar(ps.map(card), 'Programas de estudio') : `<div class="u-grid">${ps.map(card).join('')}</div>`}</div></section>`; },
+      return `<section class="u-pan-s"><div class="u-pan">${uHead('Programas de estudio', 'Formación profesional técnica de 3 años con título a nombre de la Nación.', uBtn('#/programas', 'Ver todos los programas'))}${progView() === 'carrusel' && ps.length > 1 ? uCar(ps.map(card), 'Programas de estudio', true) : `<div class="u-grid">${ps.map(card).join('')}</div>`}</div></section>`; },
     noticias: () => { const ns = pubNews().slice(0, 8); const card = n => `<article class="u-nc"><div class="u-nimg"><img src="${img(n.imagen, 'ph:campus:4')}" data-fit="${newsImageFit(n)}" alt="" loading="lazy">${uArrow()}</div><div class="u-nb"><time datetime="${esc(n.fecha)}">${fdate(n.fecha)}</time><h3><a href="#/noticias/${esc(n.slug)}">${esc(n.titulo)}</a></h3></div></article>`;
-      return `<section class="u-pan-s u-pan-d"><div class="u-pan">${uHead('Últimas novedades', 'Noticias y actividades de nuestra comunidad educativa.', uBtn('#/noticias', 'Ver más noticias'))}${ns.length ? uCar(ns.map(card), 'Últimas novedades') : emptyMsg('noticias')}</div></section>`; },
+      return `<section class="u-pan-s"><div class="u-pan">${uHead('Últimas novedades', 'Noticias y actividades de nuestra comunidad educativa.', uBtn('#/noticias', 'Ver más noticias'))}${ns.length ? uCar(ns.map(card), 'Últimas novedades') : emptyMsg('noticias')}</div></section>`; },
     beneficios: () => `<section class="u-light u-mod"><div class="wrap u-2"><div>${uHead(`¿Por qué estudiar en el ${esc(i.nombreCorto)}?`, esc(i.descripcion))}<div class="u-collage u-collage2">${pics.slice(3, 5).map(src => `<img src="${img(src)}" alt="" loading="lazy">`).join('')}<i></i><i></i></div></div>
       <div class="u-acc-l">${h.beneficios.slice(0, 8).map((b, k) => `<details class="u-ac"${k ? '' : ' open'}><summary><span class="u-ai">${ic(b.i)}</span><b>${esc(b.t)}</b><span class="u-chev" aria-hidden="true">${ic('down')}</span></summary><p>${esc(b.d)}</p></details>`).join('')}</div></div></section>`,
     jerarquica: () => { const js = sortO(P('jerarquica').filter(isPub)).map(j => ({ j, p: persona(j.personaId) })).filter(x => x.p); if (!js.length) return '';
-      return `<section class="u-light u-team"><div class="wrap">${uHead('Plana jerárquica', 'Conoce al equipo directivo que conduce nuestra institución.', uBtn('#/nosotros/plana-jerarquica', 'Conocer al equipo'))}${uCar(js.map(({ j, p }) => `<article class="u-tc"><img src="${img(p.foto)}" alt="Fotografía de ${esc(fullName(p))}" loading="lazy"><div><b>${esc(fullName(p))}</b><small>${esc(j.cargo)}</small></div>${uArrow()}</article>`), 'Plana jerárquica')}</div></section>`; },
+      return `<section class="u-light u-team"><div class="wrap">${uHead('Plana jerárquica', 'Conoce al equipo directivo que conduce nuestra institución.', uBtn('#/nosotros/plana-jerarquica', 'Conocer al equipo'))}${uCar(js.map(({ j, p }) => `<article class="u-tc"><img src="${img(p.foto)}" alt="Fotografía de ${esc(fullName(p))}" loading="lazy"><div><b><a href="#/nosotros/plana-jerarquica">${esc(fullName(p))}</a></b><small>${esc(j.cargo)}</small></div>${uArrow()}</article>`), 'Plana jerárquica')}</div></section>`; },
     testimonios: () => { const es = P('egresados').filter(isPub).slice(0, 6); if (!es.length) return '';
       return `<section class="u-band u-quote"><div class="wrap">${uHead('Lo que dicen nuestros egresados', '', '')}${uCar(es.map(e => `<figure class="u-ph u-ph-s"><img src="${img(e.foto)}" alt="" loading="lazy"><figcaption><b>${esc(e.nombres)}</b><em>${esc((progById(e.programaId) || {}).nombre || '')} · Promoción ${esc(e.anio)}</em><q>${esc(clamp(e.testimonio || '', 160))}</q></figcaption></figure>`), 'Testimonios de egresados')}</div></section>`; },
     eventos: () => { const ev = P('eventos').filter(e => isPub(e) && new Date(e.fecha) >= new Date(new Date().toDateString())).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 3); if (!ev.length) return '';
       return `<section class="u-pan-s"><div class="u-pan">${uHead('Próximos eventos', '', uBtn('#/eventos', 'Ver agenda completa'))}<div class="grid g3">${ev.map(eventCard).join('')}</div></div></section>`; },
     enlaces: () => { const all = coll('enlaces').filter(l => !l.deleted && ext(l.id)); let ls = all.filter(l => l.grupo === 'minedu'); if (!ls.length) ls = all.filter(l => l.grupo === 'Institucional' && l.id !== 'web'); if (!ls.length) return '';
-      return `<section class="u-pan-s u-pan-l"><div class="u-pan">${uHead('Plataformas del Estado', 'Enlaces institucionales del sector Educación.', '')}<div class="u-logos">${ls.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><span class="u-lg">${esc((l.id.length <= 10 ? l.id : l.nombre.split(/\s+/)[0]).toUpperCase())}</span><small>${esc(l.nombre)}</small><span class="sr-only"> (se abre en una pestaña nueva)</span></a>`).join('')}</div></div></section>`; },
+      return `<section class="u-pan-s"><div class="u-pan">${uHead('Plataformas del Estado', 'Enlaces institucionales del sector Educación.', '')}<div class="u-logos">${ls.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><span class="u-lg">${esc((l.id.length <= 10 ? l.id : l.nombre.split(/\s+/)[0]).toUpperCase())}</span><small>${esc(l.nombre)}</small><span class="sr-only"> (se abre en una pestaña nueva)</span></a>`).join('')}</div></div></section>`; },
   });
 }
 function bannerHTML(b) {
@@ -1452,7 +1452,19 @@ function bindPublicChrome() {
   });
   if(!window.__publicNavOutside){window.__publicNavOutside=true;document.addEventListener('click', e => { if(!e.target.closest('.mainnav li'))$$('.mainnav li.open').forEach(x => {x.classList.remove('open');$('button.top',x)?.setAttribute('aria-expanded','false');}); });}
   const ua = $('.u-acc-b'); if (ua) { const m = $('#u-acc'); ua.onclick = e => { e.stopPropagation(); const o = !m.classList.contains('open'); m.classList.toggle('open', o); ua.setAttribute('aria-expanded', o); }; if (!window.__uAccOut) { window.__uAccOut = true; document.addEventListener('click', e => { const mm = $('#u-acc'); if (mm && !e.target.closest('.u-acc')) { mm.classList.remove('open'); const b = $('.u-acc-b'); b && b.setAttribute('aria-expanded', 'false'); } }); } }
-  const us = $('.u-sb'); if (us) us.onclick = () => { const f = $('#u-srch'); f.hidden = !f.hidden; us.setAttribute('aria-expanded', !f.hidden); if (!f.hidden) $('input', f).focus(); };
+  if (ua) { const box = $('.u-acc'), m = $('#u-acc'); const close = focus => { m.classList.remove('open'); ua.setAttribute('aria-expanded', 'false'); if (focus) ua.focus(); };
+    box.addEventListener('keydown', e => { if (e.key === 'Escape' && m.classList.contains('open')) { e.stopPropagation(); close(true); } });
+    box.addEventListener('focusout', e => { if (e.relatedTarget && !box.contains(e.relatedTarget)) close(false); }); }
+  const us = $('.u-sb'); if (us) { const f = $('#u-srch'); us.onclick = () => { f.hidden = !f.hidden; us.setAttribute('aria-expanded', !f.hidden); if (!f.hidden) $('input', f).focus(); };
+    f.addEventListener('keydown', e => { if (e.key === 'Escape') { f.hidden = true; us.setAttribute('aria-expanded', 'false'); us.focus(); } }); }
+  $$('.u-car').forEach(c => { const t = $('.pcar-t', c); let d = c.nextElementSibling; if (!d || !d.classList.contains('u-dots')) { d = document.createElement('div'); d.className = 'u-dots'; c.after(d); }
+    const pages = () => Math.max(1, Math.ceil(t.scrollWidth / Math.max(1, t.clientWidth) - 0.05));
+    const curPage = n => { const max = t.scrollWidth - t.clientWidth; return max > 0 ? Math.round(t.scrollLeft / max * (n - 1)) : 0; };
+    const draw = () => { const n = pages(); if (n < 2) { d.innerHTML = ''; d.dataset.n = '1'; return; }
+      if (d.dataset.n !== String(n)) { d.dataset.n = String(n); d.innerHTML = Array.from({ length: n }, (_, k) => `<button type="button" aria-label="Ir al grupo ${k + 1} de ${n}"></button>`).join(''); $$('button', d).forEach((b, k) => b.onclick = () => t.scrollTo({ left: (t.scrollWidth - t.clientWidth) * k / (n - 1), behavior: 'smooth' })); }
+      const k = curPage(n); $$('button', d).forEach((b, i) => b.toggleAttribute('aria-current', i === k)); };
+    draw(); t.addEventListener('scroll', () => { clearTimeout(t.__ud); t.__ud = setTimeout(draw, 90); }, { passive: true }); c.__uDraw = draw; });
+  if (!window.__uDotsResize) { window.__uDotsResize = true; window.addEventListener('resize', () => $$('.u-car').forEach(c => c.__uDraw && c.__uDraw()), { passive: true }); }
   $$('[data-search]').forEach(f => f.onsubmit = e => { e.preventDefault(); go('#/buscar?q=' + encodeURIComponent(f.elements.namedItem('q').value.trim())); });
   const nl = $('[data-newsletter]'); if (nl) nl.onsubmit = e => { e.preventDefault(); const cap=checkCaptcha(nl,'cap-nl');if(cap)return toast(cap,'err'); const em = $('#nl').value; if (!reEmail.test(em)) return toast('Correo no válido', 'err'); coll('suscriptores').push({ correo: em, fecha: nowISO() }); if (!saveDB()) return; nl.reset(); toast('Tu suscripción quedó registrada. El envío por correo está pendiente de habilitación.', 'ok'); };
   // carrusel de programas
@@ -1462,7 +1474,7 @@ function bindPublicChrome() {
       if (d > 0 && t.scrollLeft >= max) t.scrollTo({ left: 0, behavior: 'smooth' }); else if (d < 0 && t.scrollLeft <= 4) t.scrollTo({ left: t.scrollWidth, behavior: 'smooth' }); else t.scrollBy({ left: d * w, behavior: 'smooth' }); };
     $$('[data-pcar-b]', c).forEach(b => b.onclick = () => step(+b.dataset.pcarB));
     c.onmouseenter = () => paused = true; c.onmouseleave = () => paused = false; c.addEventListener('focusin', () => paused = true); c.addEventListener('focusout', () => paused = false); t.addEventListener('touchstart', () => paused = true, { passive: true });
-    if (PREVIEW || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (PREVIEW || c.hasAttribute('data-pcar-static') || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const id = setInterval(() => { if (!document.body.contains(c)) return clearInterval(id); if (!paused && !document.hidden) step(1); }, 5000);
   });
   // carrusel
