@@ -1497,13 +1497,16 @@ function bindPublicChrome() {
     show(0);
     $$('[data-sl]').forEach(b => b.onclick = () => show(k + +b.dataset.sl)); $$('[data-dot]').forEach(b => b.onclick = () => show(+b.dataset.dot));
     const hero = $('.hero'); hero.onmouseenter = () => paused = true; hero.onmouseleave = () => paused = false; hero.addEventListener('focusin', () => paused = true); hero.addEventListener('focusout', () => paused = false);
-    clearInterval(window.__sl); window.__sl = setInterval(() => { if (!paused && document.body.contains(hero)) show(k + 1); }, 6500);
+    if (!PREVIEW && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.__sl = setInterval(() => { if (!paused && !document.hidden && document.body.contains(hero)) show(k + 1); }, 6500);
+    }
   }
 }
 function revealOnScroll() {
   if (PREVIEW || !('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const els = $$('#app .sec-h, #app .card, #app .stat, #app .welcome > *, #app .person, #app .collage figure').filter(e => !e.closest('.modal'));
   const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -40px 0px' });
+  window.__publicReveal = io;
   els.forEach((e, i) => { const r = e.getBoundingClientRect(); if (r.top < innerHeight) return; e.classList.add('rv'); e.style.transitionDelay = (i % 4) * 70 + 'ms'; io.observe(e); });
 }
 function maybePopup() {
@@ -2930,6 +2933,8 @@ function countVisit() {
 }
 let LAST_PATH = null;
 function route() {
+  clearInterval(window.__sl);
+  if (window.__publicReveal) { window.__publicReveal.disconnect(); window.__publicReveal = null; }
   const raw = location.hash.replace(/^#\/?/, ''); const [p, qs] = raw.split('?');
   const parts = (p || '').split('/').filter(Boolean); const q = new URLSearchParams(qs || '');
   const app = document.getElementById('app'); const samePath = LAST_PATH === p; LAST_PATH = p;
