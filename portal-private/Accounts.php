@@ -87,6 +87,14 @@ trait PortalAccounts
     {
         $this->requireAdmin();return array_map(fn($r)=>['id'=>(int)$r['id'],'username'=>$r['username'],'name'=>$r['name'],'email'=>$r['email'],'role'=>$r['role'],'active'=>$r['active'],'profile'=>json_decode($r['profile']??'{}',true)??[]],$this->db()->query('SELECT * FROM pisco_users ORDER BY username')->fetchAll());
     }
+    /** Contraseña temporal aleatoria, sin prefijos fijos, con mayúsculas, minúsculas y dígitos. */
+    public static function temporaryPassword(): string
+    {
+        $alphabet='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+        do{$chars='';for($i=0;$i<16;$i++)$chars.=$alphabet[random_int(0,strlen($alphabet)-1)];}
+        while(!preg_match('/[A-Z]/',$chars)||!preg_match('/[a-z]/',$chars)||!preg_match('/[0-9]/',$chars));
+        return implode('-',str_split($chars,4));
+    }
     public function createAccount(array $input,bool $authorize=true): void
     {
         if($authorize){$this->requireAdmin();$this->rate('accounts',120,60);}
@@ -115,7 +123,7 @@ trait PortalAccounts
             $state=json_decode($this->state()['data'],true);$student=PortalPolicy::find($state['academico']['estudiantes']??[],'id',$input['student_id']??null);
             if(!$student)throw new PortalError(422,'Alumno no encontrado.');
             if($role==='coordinador'&&($student['prog']??null)!==($state['academico']['progMap'][$actor['programaId']]??null))throw new PortalError(403,'Alumno de otro programa.');
-            $password='FLV-'.bin2hex(random_bytes(8)).'!';
+            $password=self::temporaryPassword();
             $fields=['username'=>(string)$student['dni'],'name'=>$student['nom'],'email'=>($student['correo']??'')?:$student['dni'].'@portal.invalid','password'=>$password,'role'=>in_array($student['estado'],['Egresado','Titulado'],true)?'egresado':'estudiante','vin'=>'est:'.$student['id'],'dni'=>(string)$student['dni']];
             $this->createAccount($fields,false);$row=$this->db()->query('SELECT * FROM pisco_users WHERE username = '.$this->db()->quote(strtolower($fields['username'])))->fetch();
             $this->flagPasswordChange((int)$row['id'],true);$row['profile']=json_encode([...(json_decode($row['profile']??'{}',true)??[]),'cambiarClave'=>true]);
@@ -163,6 +171,7 @@ trait PortalAccounts
         if(($input['password_confirmation']??null)!==$data['password']||strlen($data['password'])>72)throw new PortalError(422,'La contraseña nueva y su confirmación deben coincidir.');
         $stmt=$this->db()->prepare('SELECT password,auth_version FROM pisco_users WHERE id=?');$stmt->execute([$user['server_id']]);$old=$stmt->fetch();
         if(!password_verify($data['current_password'],$old['password']))throw new PortalError(422,'La contraseña actual no es correcta.');
+        if(password_verify($data['password'],$old['password']))throw new PortalError(422,'La contraseña nueva debe ser distinta de la actual.');
         $this->db()->prepare('UPDATE pisco_users SET password=?,auth_version=auth_version+1,login_failures=0,locked_until=NULL WHERE id=?')->execute([password_hash($data['password'],PASSWORD_DEFAULT),$user['server_id']]);
         $this->flagPasswordChange((int)$user['server_id'],false);
         PortalAudit::write($this,'Cambiar contraseña','Cuentas',(string)$user['server_id'],[],$user);

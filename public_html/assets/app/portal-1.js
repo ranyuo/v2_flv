@@ -1758,7 +1758,7 @@ function logout(){ HOST.logout() }
 const ACTIONS = {
   mkAcc(id){ if(lvl("alumnos") < 2) return; const e = byId(DB.estudiantes, +id); if(!e) return; const r = HOST.createStudentAccount({id:e.id, dni:e.dni, nom:e.nom, estado:e.estado, correo:e.correo || ""});
     if(r.error) return toast(r.error); log("Crear acceso","Maestro de alumnos",`${e.dni} ${e.nom}`); render();
-    openModal({title:"Acceso creado", body:`<p>Se creó la cuenta de <b>${esc(e.nom)}</b> como <b>${esc(r.rolLabel)}</b>.</p><dl class="dl"><dt>Usuario</dt><dd class="mono">${esc(r.usuario)}</dd><dt>Contraseña temporal</dt><dd class="mono" style="font-size:1.1rem">${esc(r.pass)}</dd></dl><p class="note">Entréguela al alumno. Ingresa en “Ingresar a la intranet” y verá su ficha, horario, certificaciones, bolsa laboral y trámites.</p>`}) },
+    openModal({title:"Acceso creado", body:`<p>Se creó la cuenta de <b>${esc(e.nom)}</b> como <b>${esc(r.rolLabel)}</b>.</p><dl class="dl"><dt>Usuario</dt><dd class="mono">${esc(r.usuario)}</dd><dt>Contraseña temporal</dt><dd class="mono" style="font-size:1.1rem">${esc(r.pass)}</dd></dl><p class="note">Entréguela al alumno: es temporal y deberá cambiarla en su primer ingreso. Luego verá su ficha, horario, certificaciones, bolsa laboral y trámites.</p>`}) },
   uRol(id){ S.ui.uRol = id; render() },
   uClear(){ S.ui.uRol = ""; S.ui.uEst = ""; S.q.usuarios = ""; render() },
   uVerRol(id){ S.ui.uRolSel = id; S.tab.usuarios = "permisos"; render(); window.scrollTo(0,0) },
@@ -1938,10 +1938,11 @@ const FORMS = {
     if(vals.ruc&&!errs.ruc&&!rucValido(vals.ruc))errs.ruc="El RUC no es válido.";
     const decl=form.querySelector("#empDecl");if(!decl?.checked)errs.ruc="Debes aceptar la declaración jurada.";
     if(!showErrs(form,errs))return;
-    form.dataset.sending='true';const controls=[...form.elements].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);const progress=form.querySelector('[data-company-progress]');if(progress)progress.hidden=false;const button=form.querySelector('[type=submit]');const original=button?.textContent;if(button){button.disabled=true;button.textContent='Registrando empresa, espera un momento…';}
-    try{const result=await HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();
+    form.dataset.sending='true';const controls=[...form.elements,...document.querySelectorAll('.pz-mt [data-tab]')].map(el=>[el,el.disabled]);controls.forEach(([el])=>el.disabled=true);const progress=form.querySelector('[data-company-progress]');if(progress)progress.hidden=false;const button=form.querySelector('[type=submit]');const original=button?.textContent;if(button){button.disabled=true;button.textContent='Registrando empresa, espera un momento…';}
+    const preventLeave=event=>{event.preventDefault();event.returnValue='';};window.addEventListener('beforeunload',preventLeave);portalSubmissionStatus('Registrando empresa. Espera un momento y no cierres la página.');
+    try{const result=await HOST.registerCompany({...vals,declaration:decl.checked});DB.empresas.push(result.company);render();portalSubmissionStatus('Empresa registrada correctamente.');
       openModal({title:"Empresa registrada",body:`<div class="alert ok">${esc(result.company.nom)} quedó pendiente de validación institucional.</div><p>Tu usuario es <b>${esc(result.username)}</b>. Entra con la contraseña que acabas de elegir.</p>`,foot:'<a class="btn" href="#/admin">Ingresar a la intranet</a>'});
-    }catch(error){toast(error.message);}finally{delete form.dataset.sending;controls.forEach(([el,disabled])=>el.disabled=disabled);if(progress)progress.hidden=true;if(button)button.textContent=original;}
+    }catch(error){toast(error.message);portalSubmissionStatus(error.message);}finally{window.removeEventListener('beforeunload',preventLeave);delete form.dataset.sending;controls.forEach(([el,disabled])=>el.disabled=disabled);if(progress)progress.hidden=true;if(button)button.textContent=original;}
   },
   empSelf(form){
     const e = myEmp(), fields = ENT.empresas.fields().filter(f => f.k !== "validada" && f.k !== "ruc"), {vals, errs} = readFields(fields, form);
