@@ -683,11 +683,11 @@ function uniHeader(path, nav, cur) {
   const i = inst();
   const acc = [[ext('aula'), 'Plataforma Virtual', 'monitor'], [ext('correo'), 'Correo institucional', 'mail'], [ext('biblioteca'), 'Biblioteca virtual', 'book'], ['#/servicios', 'Servicios en línea', 'inbox'], ['#/admin', 'Intranet', 'lock']].filter(x => x[0]);
   return `<a class="skip" href="#contenido" onclick="event.preventDefault();document.getElementById('contenido').focus()">Saltar al contenido principal</a>
-  <header class="site-header u-head"><div class="u-bar">
+  <header class="site-header u-head u-fit-2"><div class="u-bar">
     <a class="u-brand" href="#/" aria-label="${esc(i.nombreCorto)} - ir a inicio"><img src="${logoSrc()}" alt="Logotipo del ${esc(i.nombre)}"><span><strong>${esc(i.nombreCorto)}</strong><small>${esc(i.slogan)}</small></span></a>
     <nav class="mainnav" id="mainnav" aria-label="Navegación principal"><div class="wrap"><ul><li><a class="top home ${cur === '' ? 'active' : ''}" href="#/" aria-label="Inicio">${ic('home')}<span class="hide-lg">Inicio</span></a></li>${nav}</ul>
     <form class="mobile-search" role="search" data-search><label class="sr-only" for="q2">Buscar</label><input class="inp" id="q2" name="q" placeholder="Buscar en el sitio..."><button class="btn gold sm">Buscar</button></form></div></nav>
-    <div class="u-tools"><div class="u-acc"><button type="button" class="u-acc-b" aria-expanded="false" aria-controls="u-acc">Accesos institucionales <span aria-hidden="true">▾</span></button><ul class="u-acc-m" id="u-acc">${acc.map(([h, l, c]) => `<li><a ${linkAttrs(h)}>${ic(c)} ${esc(l)}${/^https?:/.test(h) ? '<span class="sr-only"> (enlace externo)</span>' : ''}</a></li>`).join('')}<li class="u-acc-c"><a href="mailto:${esc(i.correo)}">${ic('mail')} ${esc(i.correo)}</a></li><li class="u-acc-c"><a href="tel:${esc(String(i.telefono || '').replace(/\D/g, ''))}">${ic('phone')} ${esc(i.telefono)}</a></li></ul></div>
+    <div class="u-tools"><div class="u-acc"><button type="button" class="u-acc-b" aria-expanded="false" aria-controls="u-acc"><span>Accesos<br>institucionales</span><i class="u-chv" aria-hidden="true"></i></button><ul class="u-acc-m" id="u-acc">${acc.map(([h, l, c]) => `<li><a ${linkAttrs(h)}>${ic(c)} ${esc(l)}${/^https?:/.test(h) ? '<span class="sr-only"> (enlace externo)</span>' : ''}</a></li>`).join('')}<li class="u-acc-c"><a href="mailto:${esc(i.correo)}">${ic('mail')} ${esc(i.correo)}</a></li><li class="u-acc-c"><a href="tel:${esc(String(i.telefono || '').replace(/\D/g, ''))}">${ic('phone')} ${esc(i.telefono)}</a></li></ul></div>
     <button type="button" class="u-sb" aria-expanded="false" aria-controls="u-srch" aria-label="Abrir el buscador">${ic('search')}</button>
     <button class="menu-btn" aria-expanded="false" aria-controls="mainnav" data-menu>☰ <span class="sr-only">Abrir menú</span></button></div>
   </div>
@@ -1451,6 +1451,15 @@ function bindPublicChrome() {
     b.parentNode.addEventListener('keydown', e => { if (e.key === 'Escape') { b.parentNode.classList.remove('open'); b.setAttribute('aria-expanded', 'false'); b.focus(); } });
   });
   if(!window.__publicNavOutside){window.__publicNavOutside=true;document.addEventListener('click', e => { if(!e.target.closest('.mainnav li'))$$('.mainnav li.open').forEach(x => {x.classList.remove('open');$('button.top',x)?.setAttribute('aria-expanded','false');}); });}
+  const uh = $('.u-head'); if (uh) {
+    // Elige la cabecera más amplia que quepa sin superponerse: una fila con nombre, una fila solo con logotipo o el menú en una segunda fila.
+    const fit = () => { const h = $('.u-head'); if (!h) return; h.classList.remove('u-fit-1', 'u-fit-2'); if (matchMedia('(max-width:900px)').matches) return;
+      const ul = $('.mainnav>.wrap>ul', h), tools = $('.u-tools', h), nav = $('.mainnav', h);
+      const over = () => { const last = ul.lastElementChild; return ul.scrollWidth > nav.clientWidth + 1 || (last && last.getBoundingClientRect().right > tools.getBoundingClientRect().left - 6) || document.documentElement.scrollWidth > innerWidth + 1; };
+      if (!over()) return; h.classList.add('u-fit-1'); if (!over()) return; h.classList.remove('u-fit-1'); h.classList.add('u-fit-2'); };
+    fit(); window.__uFit = fit;
+    if (!window.__uFitBound) { window.__uFitBound = true; let tm; addEventListener('resize', () => { clearTimeout(tm); tm = setTimeout(() => window.__uFit && window.__uFit(), 80); }, { passive: true }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => window.__uFit && window.__uFit()); }
+  }
   const ua = $('.u-acc-b'); if (ua) { const m = $('#u-acc'); ua.onclick = e => { e.stopPropagation(); const o = !m.classList.contains('open'); m.classList.toggle('open', o); ua.setAttribute('aria-expanded', o); }; if (!window.__uAccOut) { window.__uAccOut = true; document.addEventListener('click', e => { const mm = $('#u-acc'); if (mm && !e.target.closest('.u-acc')) { mm.classList.remove('open'); const b = $('.u-acc-b'); b && b.setAttribute('aria-expanded', 'false'); } }); } }
   if (ua) { const box = $('.u-acc'), m = $('#u-acc'); const close = focus => { m.classList.remove('open'); ua.setAttribute('aria-expanded', 'false'); if (focus) ua.focus(); };
     box.addEventListener('keydown', e => { if (e.key === 'Escape' && m.classList.contains('open')) { e.stopPropagation(); close(true); } });
