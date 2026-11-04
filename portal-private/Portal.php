@@ -96,8 +96,21 @@ final class PortalApp
                 $roles=$this->connection->query("SELECT setting_value FROM pisco_settings WHERE setting_key='role_permissions'")->fetchColumn();
                 PortalPolicy::configureRoles($roles?json_decode($roles,true,flags:JSON_THROW_ON_ERROR):[]);
             } catch(PDOException $error) { if($error->getCode()!=='42S02')throw $error;PortalPolicy::configureRoles([]); }
+            $this->upgradeSchema();
         }
         return $this->connection;
+    }
+
+    /** Al subir una versión nueva, la base instalada se actualiza una sola vez (p. ej. la cola de correo pisco_mail). */
+    private function upgradeSchema(): void
+    {
+        try{$version=(int)$this->connection->query('SELECT version FROM pisco_schema WHERE id=1')->fetchColumn();}
+        catch(PDOException $error){if($error->getCode()==='42S02')return;throw $error;}
+        if($version===0||$version>=PortalSchema::VERSION)return;
+        if((int)$this->connection->query("SELECT GET_LOCK('pisco_schema_upgrade',30)")->fetchColumn()!==1)throw new PortalError(503,'La actualización de la base está en curso. Inténtalo en unos segundos.');
+        try{
+            if((int)$this->connection->query('SELECT version FROM pisco_schema WHERE id=1')->fetchColumn()<PortalSchema::VERSION)PortalSchema::apply($this->connection);
+        }finally{$this->connection->query("SELECT RELEASE_LOCK('pisco_schema_upgrade')");}
     }
 
     private static function publishedScholarship(array $row,array $data): bool

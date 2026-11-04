@@ -77,7 +77,7 @@ final class PortalMail
         if(!$this->ready())return $result+['configured'=>false];
         if($db->inTransaction())throw new LogicException('Los correos se procesan después de confirmar el trámite.');
         // Un solo emisor por base. El bloqueo se libera incluso si el proceso muere.
-        $lock='palpa-mail-'.substr(hash('sha256',(string)$db->query('SELECT DATABASE()')->fetchColumn()),0,40);
+        $lock='portal-mail-'.substr(hash('sha256',(string)$db->query('SELECT DATABASE()')->fetchColumn()),0,40);
         $get=$db->prepare('SELECT GET_LOCK(?,0)');$get->execute([$lock]);
         if((int)$get->fetchColumn()!==1)return $result+['busy'=>true];
         try{
@@ -129,10 +129,10 @@ final class PortalMail
         $mail->SMTPOptions=['ssl'=>['verify_peer'=>true,'verify_peer_name'=>true,'allow_self_signed'=>false]];
         if(!empty($c['ca_file']))$mail->SMTPOptions['ssl']['cafile']=$c['ca_file'];
         $mail->CharSet='UTF-8';$mail->Encoding='base64';
-        $mail->setFrom($from,$c['from_name']??'Intranet Palpa');
+        $mail->setFrom($from,$c['from_name']??'Portal IESTP FLV');
         $mail->addAddress($row['recipient']);
         $domain=substr(strrchr($from,'@'),1);
-        $mail->MessageID='<palpa-'.$row['id'].'@'.$domain.'>';
+        $mail->MessageID='<portal-'.$row['id'].'@'.$domain.'>';
         $mail->Subject=$row['subject'];$mail->Body=$row['body'];$mail->isHTML(false);
         $mail->send();
     }

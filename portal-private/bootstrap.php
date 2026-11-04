@@ -64,7 +64,7 @@ function portal_defer(callable $task): void
 
 function portal_run_task(callable $task): void
 {
-    try { $task(); } catch (Throwable $error) { error_log('Intranet Palpa: tarea diferida fallida: '.$error->getMessage()); }
+    try { $task(); } catch (Throwable $error) { error_log('Portal FLV: tarea diferida fallida: '.$error->getMessage()); }
 }
 
 /** Cierra la respuesta HTTP y ejecuta las tareas diferidas sin que el usuario espere. */

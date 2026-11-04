@@ -13,14 +13,14 @@ final class SmtpSettings
     {
         $key=$this->config['install_key']??'';
         if(!is_string($key)||strlen($key)<32)throw new PortalError(503,'Configura una clave privada de instalación de al menos 32 caracteres.');
-        return hash('sha256','palpa-smtp-v1|'.$key,true);
+        return hash('sha256','portal-smtp-v1|'.$key,true);
     }
 
     public function read(): array
     {
         $base=['enabled'=>false,'host'=>'smtp.gmail.com','port'=>587,'encryption'=>'tls',
             'username'=>'notificaciones@proyectos.pe','from_email'=>'notificaciones@proyectos.pe',
-            'from_name'=>'Notificaciones · IES Público Palpa','password'=>'',...($this->config['smtp']??[])];
+            'from_name'=>'Notificaciones · IESTP FLV','password'=>'',...($this->config['smtp']??[])];
         $path=$this->path();if($path===null||!file_exists($path))return $base;
         try{
             $raw=@file_get_contents($path);if(!is_string($raw))throw new RuntimeException();
@@ -29,7 +29,7 @@ final class SmtpSettings
             foreach(['nonce','tag','ciphertext'] as $field)if(!is_string($blob[$field]??null))throw new RuntimeException();
             $nonce=base64_decode($blob['nonce'],true);$tag=base64_decode($blob['tag'],true);$cipher=base64_decode($blob['ciphertext'],true);
             if(!is_string($nonce)||strlen($nonce)!==12||!is_string($tag)||strlen($tag)!==16||!is_string($cipher))throw new RuntimeException();
-            $plain=openssl_decrypt($cipher,'aes-256-gcm',$this->key(),OPENSSL_RAW_DATA,$nonce,$tag,'palpa-smtp-v1');
+            $plain=openssl_decrypt($cipher,'aes-256-gcm',$this->key(),OPENSSL_RAW_DATA,$nonce,$tag,'portal-smtp-v1');
             if($plain===false)throw new RuntimeException();
             return [...$base,...json_decode($plain,true,flags:JSON_THROW_ON_ERROR)];
         }catch(Throwable $error){throw new PortalError(503,'No se pudo leer la configuración SMTP protegida. Revisa la clave privada y los permisos del servidor.');}
@@ -62,7 +62,7 @@ final class SmtpSettings
             if($c['password']===''&&$old['username']===$c['username']&&$old['host']===$c['host'])$c['password']=$old['password'];
             if($c['enabled']&&$c['password']==='')throw new PortalError(422,'Introduce una contraseña de aplicación para habilitar este correo.');
             $nonce=random_bytes(12);$tag='';
-            $cipher=openssl_encrypt(json_encode($c,JSON_THROW_ON_ERROR),'aes-256-gcm',$this->key(),OPENSSL_RAW_DATA,$nonce,$tag,'palpa-smtp-v1');
+            $cipher=openssl_encrypt(json_encode($c,JSON_THROW_ON_ERROR),'aes-256-gcm',$this->key(),OPENSSL_RAW_DATA,$nonce,$tag,'portal-smtp-v1');
             if($cipher===false)throw new RuntimeException();
             $json=json_encode(['version'=>1,'nonce'=>base64_encode($nonce),'tag'=>base64_encode($tag),'ciphertext'=>base64_encode($cipher)],JSON_THROW_ON_ERROR);
             $tmp=tempnam(dirname($path),'.smtp-');if($tmp===false)throw new RuntimeException();
