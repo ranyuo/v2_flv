@@ -1458,6 +1458,8 @@ function bindPublicChrome() {
       const over = () => { const last = ul.lastElementChild; return ul.scrollWidth > nav.clientWidth + 1 || (last && last.getBoundingClientRect().right > tools.getBoundingClientRect().left - 6) || document.documentElement.scrollWidth > innerWidth + 1; };
       if (!over()) return; h.classList.add('u-fit-1'); if (!over()) return; h.classList.remove('u-fit-1'); h.classList.add('u-fit-2'); };
     fit(); window.__uFit = fit;
+    const sc = () => { const h = $('.u-head'); if (h) h.classList.toggle('u-sc', scrollY > 140); }; sc();
+    if (!window.__uScBound) { window.__uScBound = true; addEventListener('scroll', sc, { passive: true }); }
     if (!window.__uFitBound) { window.__uFitBound = true; let tm; addEventListener('resize', () => { clearTimeout(tm); tm = setTimeout(() => window.__uFit && window.__uFit(), 80); }, { passive: true }); if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => window.__uFit && window.__uFit()); }
   }
   const ua = $('.u-acc-b'); if (ua) { const m = $('#u-acc'); ua.onclick = e => { e.stopPropagation(); const o = !m.classList.contains('open'); m.classList.toggle('open', o); ua.setAttribute('aria-expanded', o); }; if (!window.__uAccOut) { window.__uAccOut = true; document.addEventListener('click', e => { const mm = $('#u-acc'); if (mm && !e.target.closest('.u-acc')) { mm.classList.remove('open'); const b = $('.u-acc-b'); b && b.setAttribute('aria-expanded', 'false'); } }); } }
