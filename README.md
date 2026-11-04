@@ -24,11 +24,15 @@ El archivo `portal-private/config.php` (datos de la base de datos y clave de ins
    - En *Mesa de partes › Áreas receptoras › Editar áreas*, carga las áreas reales con sus correos.
    - En *Usuarios y roles*, crea las cuentas del personal.
 
+**Correo de notificaciones (recomendado):** en la intranet, *Configuración › Configurar correo notificador (SMTP)*, indica el servidor, la cuenta y su contraseña de aplicación y activa el envío. Después, en hPanel › *Avanzado › Trabajos cron*, crea una tarea **cada minuto** con `php /home/<usuario>/domains/<dominio>/portal-private/mail-worker.php` para los reintentos. Detalles en [MEJORAS-MODULOS.md](MEJORAS-MODULOS.md).
+
 **Opcional, respaldos automáticos:** en hPanel › *Avanzado › Trabajos cron*, crea una tarea diaria con `php /home/<usuario>/domains/<dominio>/portal-private/cron.php`. Luego actívala en la intranet, en *Copias de seguridad*.
 
 ## Actualizar una instalación existente
 
 Sube `portal-private/` y `public_html/` encima de las carpetas actuales y acepta **sobrescribir**. **No borres las carpetas antes:** así se conservan `config.php`, `backups/` e `install.lock`. Después, borra `public_html/install.php`.
+
+La base de datos se actualiza sola la primera vez que se abre el sitio con la versión nueva (por ejemplo, crea la cola de correo `pisco_mail`); no se pierden datos ni cuentas.
 
 ## Dónde se edita
 
