@@ -737,8 +737,9 @@ function uniBlocks(base, h, i) {
       return `<section class="u-pan-s"><div class="u-pan">${uHead('Plataformas del Estado', 'Enlaces institucionales del sector Educación.', '')}<div class="u-logos">${ls.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><span class="u-lg">${esc((l.id.length <= 10 ? l.id : l.nombre.split(/\s+/)[0]).toUpperCase())}</span><small>${esc(l.nombre)}</small><span class="sr-only"> (se abre en una pestaña nueva)</span></a>`).join('')}</div></div></section>`; },
   });
 }
-function bannerHTML(b) {
-  return `<section class="page-banner" aria-label="Banner de la sección"><img class="bg" src="${img(b.img || (DB.locales || []).find(l => isPub(l))?.foto || inst().logo)}" alt=""><div class="wrap">${b.kicker ? `<div class="kicker">${esc(b.kicker)}</div>` : ''}<p class="ttl" aria-hidden="true">${esc(b.title)}</p>${b.text ? `<p>${esc(b.text)}</p>` : ''}</div></section>`;
+function bannerHTML(b, slim = false) {
+  /* En los servicios en línea (formularios) el banner es bajo para que el formulario quede a la vista. */
+  return `<section class="page-banner${slim ? ' slim' : ''}" aria-label="Banner de la sección"><img class="bg" src="${img(b.img || (DB.locales || []).find(l => isPub(l))?.foto || inst().logo)}" alt=""><div class="wrap">${b.kicker ? `<div class="kicker">${esc(b.kicker)}</div>` : ''}<p class="ttl" aria-hidden="true">${esc(b.title)}</p>${b.text ? `<p>${esc(b.text)}</p>` : ''}</div></section>`;
 }
 function crumbsHTML(cr) {
   return `<nav class="crumbs" aria-label="Ruta de navegación"><div class="wrap"><ol><li><a href="#/">${ic('home').replace('<svg', '<svg style="width:14px;height:14px;vertical-align:-2px;stroke:currentColor;fill:none;stroke-width:2"')} Inicio</a></li>${cr.map((c, i) => i === cr.length - 1 ? `<li aria-current="page">${esc(c[0])}</li>` : `<li><a href="${c[1]}">${esc(c[0])}</a></li>`).join('')}</ol></div></nav>`;
@@ -776,7 +777,7 @@ function shell(path, { title, desc, crumbs = [], banner, side = null, body, layo
   setSEO({ title, desc, crumbs, jsonld });
   const main = `<div class="content">${body}</div>`;
   const cls = side === null ? 'full' : layout === 'left' ? 'left' : '';
-  return `${headerHTML(path)}${banner ? bannerHTML(banner) : ''}${crumbs.length ? crumbsHTML(crumbs) : ''}<main id="contenido" tabindex="-1"><div class="wrap layout ${cls}" style="padding-left:16px;padding-right:16px">${layout === 'left' && side !== null ? `<aside>${side}</aside>${main}` : main + (side !== null ? `<aside aria-label="Información complementaria">${side}</aside>` : '')}</div></main>${footerHTML()}`;
+  return `${headerHTML(path)}${banner ? bannerHTML(banner, /^servicios\//.test(Array.isArray(path) ? path.join('/') : String(path || ''))) : ''}${crumbs.length ? crumbsHTML(crumbs) : ''}<main id="contenido" tabindex="-1"><div class="wrap layout ${cls}" style="padding-left:16px;padding-right:16px">${layout === 'left' && side !== null ? `<aside>${side}</aside>${main}` : main + (side !== null ? `<aside aria-label="Información complementaria">${side}</aside>` : '')}</div></main>${footerHTML()}`;
 }
 const emptyMsg = (what = 'registros') => `<div class="empty" role="status">Sin ${what} publicados al ${fshort(new Date())}.</div>`;
 

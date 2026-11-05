@@ -2727,3 +2727,9 @@ tr.pz-bad td{background:var(--errbg)}
 /* Progreso del envío de trámites y anuncio accesible, desde v2_palpa */
 .mpv-progress{display:flex;align-items:flex-start;gap:14px;margin:20px 0;padding:18px;border:1px solid #ccd7ed;border-radius:12px;background:#f0f5ff;color:#14264b}.mpv-progress[hidden]{display:none}.mpv-progress p{margin:6px 0}.mpv-spinner{flex:none;display:block;width:25px;height:25px;border:3px solid #cfdaec;border-top-color:#bd3d00;border-radius:50%;animation:mpv-spin .85s linear infinite}@keyframes mpv-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.mpv-spinner{animation:none}}
 .portal-submission-announcer{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* Servicios en línea: banner bajo para que el formulario quede a la vista (todos los diseños) */
+.page-banner.slim{min-height:84px!important;padding:12px 0}
+.page-banner.slim .kicker{font-size:10.5px;margin-bottom:2px;padding:2px 10px}
+.page-banner.slim .ttl{font-size:26px!important;line-height:1.15;margin:0}
+.page-banner.slim p:not(.ttl){display:none}
+@media (max-width:640px){.page-banner.slim{min-height:64px!important;padding:10px 0}.page-banner.slim .ttl{font-size:21px!important}.page-banner.slim .kicker{display:none}}
