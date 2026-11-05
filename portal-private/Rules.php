@@ -111,7 +111,7 @@ final class PortalRules
             if(!in_array($home['programasVista']??'carrusel',['grid','carrusel'],true))throw new PortalError(422,'La vista de los programas de estudio no es válida.');
             if(count($home['beneficios'])>8&&!PortalPolicy::equal($old['config']['home']['beneficios']??null,$home['beneficios']))throw new PortalError(422,'La portada admite como máximo ocho beneficios.');
         }
-        if($changed('diseno')&&!in_array($new['config']['diseno']??null,['clasico','moderno','editorial','universitario'],true))throw new PortalError(422,'El diseño del portal no es válido.');
+        if($changed('diseno')&&!in_array($new['config']['diseno']??null,['clasico','moderno','editorial','universitario','impacto'],true))throw new PortalError(422,'El diseño del portal no es válido.');
         if($changed('popup')){
             $popup=$new['config']['popup']??null;if(!is_array($popup)||!is_bool($popup['activo']??null))throw new PortalError(422,'El comunicado debe tener una casilla de activación válida.');
             foreach(['inicio','fin'] as $key)if(!empty($popup[$key])&&!self::date($popup[$key]))throw new PortalError(422,'La fecha del comunicado no es válida.');

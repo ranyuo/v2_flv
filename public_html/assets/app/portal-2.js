@@ -200,6 +200,7 @@ const DISENOS = [
   ['clasico', 'Clásico institucional', 'Diseño original del portal: cabecera institucional, carrusel y bloques en tarjetas.'],
   ['moderno', 'Moderno', 'Portada a pantalla completa, menú flotante con efecto vidrio, tarjetas amplias con esquinas redondeadas y sombras suaves.'],
   ['editorial', 'Editorial', 'Estilo de revista digital: tipografía grande, líneas finas, fondo claro y la noticia principal destacada en grande.'],
+  ['impacto', 'Impacto', 'Alto contraste en amarillo y negro: logotipo en bloque de color, portada a pantalla completa, títulos condensados en mayúsculas, mosaico de programas, recuadros de color y franja negra de logros. El menú principal no cambia.'],
   ['universitario', 'Universitario', 'Portal de estilo universitario: cabecera oscura con logotipo en bloque blanco, programas con íconos circulares, franjas oscuras y carruseles en paneles. El menú principal no cambia.'],
 ];
 function applyTheme() {
@@ -209,6 +210,7 @@ function applyTheme() {
   const key = JSON.stringify(t); if (st.dataset.k !== key) { st.textContent = css; st.dataset.k = key; Object.keys(IMG_CACHE || {}).forEach(k => delete IMG_CACHE[k]); }
   if (t.modo === 'oscuro') document.documentElement.dataset.mode = 'dark'; else delete document.documentElement.dataset.mode;
   const lay = DB.config.diseno; if (DISENOS.some(d => d[0] === lay) && lay !== 'clasico') document.documentElement.dataset.layout = lay; else delete document.documentElement.dataset.layout;
+  if (lay === 'impacto' && !document.getElementById('font-impacto')) { const l = document.createElement('link'); l.id = 'font-impacto'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap'; document.head.appendChild(l); }
   TC = { navy: t.navy, navy2: t.navy2, blue: t.blue, gold: t.gold };
   const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = t.navy;
 }
@@ -638,6 +640,7 @@ function headerHTML(path) {
     return `<li><button class="top ${active}" aria-expanded="false" aria-controls="sub${idx}">${esc(m.label)} <span aria-hidden="true">▾</span></button><ul class="sub" id="sub${idx}">${m.items.map(it => `<li><a ${linkAttrs(it.href)} class="${it.ext ? 'ext' : ''}">${esc(it.label)}${it.ext ? '<span class="sr-only"> (enlace externo)</span>' : ''}</a></li>`).join('')}</ul></li>`;
   }).join('');
   if (isUni()) return uniHeader(path, nav, cur);
+  if (isImp()) return impHeader(path, nav, cur);
   return `<a class="skip" href="#contenido" onclick="event.preventDefault();document.getElementById('contenido').focus()">Saltar al contenido principal</a>
   <div class="topbar"><div class="wrap"><span>${esc(i.slogan)}</span><div class="tb-links">
     <a href="mailto:${esc(i.correo)}" class="hide-sm">${ic('mail')} ${esc(i.correo)}</a><a href="tel:${esc(i.telefono.replace(/\D/g, ''))}">${ic('phone')} ${esc(i.telefono)}</a>
@@ -654,6 +657,7 @@ function headerHTML(path) {
 }
 function footerHTML() {
   if (isUni()) return uniFooter();
+  if (isImp()) return impFooter();
   const i = inst(), r = DB.config.redes;
   const soc = ['facebook', 'youtube', 'instagram', 'tiktok'].filter(k => r[k]).map(k => `<a href="${esc(r[k])}" target="_blank" rel="noopener noreferrer" aria-label="${k} (se abre en una pestaña nueva)">${bic(k)}</a>`).join('');
   const ci = (icon, label, val) => `<li><span class="f-ic">${ic(icon)}</span><span><small>${label}</small>${val}</span></li>`;
@@ -737,6 +741,67 @@ function uniBlocks(base, h, i) {
       return `<section class="u-pan-s"><div class="u-pan">${uHead('Plataformas del Estado', 'Enlaces institucionales del sector Educación.', '')}<div class="u-logos">${ls.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><span class="u-lg">${esc((l.id.length <= 10 ? l.id : l.nombre.split(/\s+/)[0]).toUpperCase())}</span><small>${esc(l.nombre)}</small><span class="sr-only"> (se abre en una pestaña nueva)</span></a>`).join('')}</div></div></section>`; },
   });
 }
+/* ===== Diseño «Impacto» (amarillo y negro, títulos condensados). Cabecera, portada y pie propios; el menú es el mismo navModel ===== */
+const isImp = () => !!(DB && DB.config && DB.config.diseno === 'impacto') && !document.body.classList.contains('is-admin');
+const I_MES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SET', 'OCT', 'NOV', 'DIC'];
+const iFecha = (f, anio = true) => { const d = new Date(String(f || '').slice(0, 10) + 'T12:00:00'); return isNaN(d) ? '' : `${String(d.getDate()).padStart(2, '0')} ${I_MES[d.getMonth()]}${anio ? ', ' + d.getFullYear() : ''}`; };
+const iHead = (title, more) => `<div class="i-h"><h2>${title}</h2>${more ? `<a class="i-more" href="${more}">Ver más</a>` : ''}</div>`;
+function impHeader(path, nav, cur) {
+  const i = inst(); const y = new Date().getFullYear(); const adm = admVigente();
+  const top = [['#/admin', 'Intranet'], [ext('aula'), 'Plataforma Virtual'], [ext('correo'), 'Correo institucional'], [ext('biblioteca'), 'Biblioteca virtual'], ['#/servicios', 'Servicios en línea']].filter(x => x[0]);
+  return `<a class="skip" href="#contenido" onclick="event.preventDefault();document.getElementById('contenido').focus()">Saltar al contenido principal</a>
+  <div class="i-top"><div class="wrap">${top.map(([h, l]) => `<a ${linkAttrs(h)}>${esc(l)}${/^https?:/.test(h) ? '<span class="sr-only"> (enlace externo)</span>' : ''}</a>`).join('')}<button type="button" class="u-sb i-sb" aria-expanded="false" aria-controls="u-srch" aria-label="Abrir el buscador">${ic('search')}</button></div></div>
+  <header class="site-header i-head"><div class="i-bar">
+    <a class="i-brand" href="#/" aria-label="${esc(i.nombreCorto)} - ir a inicio"><img src="${logoSrc()}" alt="Logotipo del ${esc(i.nombre)}"><span><strong>${esc(i.logoSigla || i.nombreCorto)}</strong><small>${esc(i.nombreCorto)}</small></span></a>
+    <nav class="mainnav" id="mainnav" aria-label="Navegación principal"><div class="wrap"><ul><li><a class="top home ${cur === '' ? 'active' : ''}" href="#/" aria-label="Inicio">${ic('home')}<span class="hide-lg">Inicio</span></a></li>${nav}</ul>
+    <form class="mobile-search" role="search" data-search><label class="sr-only" for="q2">Buscar</label><input class="inp" id="q2" name="q" placeholder="Buscar en el sitio..."><button class="btn gold sm">Buscar</button></form></div></nav>
+    <a class="i-cta" href="#/admision">Postula · Admisión ${esc(adm ? adm.anio : y)}</a>
+    <button class="menu-btn" aria-expanded="false" aria-controls="mainnav" data-menu>☰ <span class="sr-only">Abrir menú</span></button>
+  </div>
+  <form class="u-srch" id="u-srch" role="search" data-search hidden><div class="wrap"><label class="sr-only" for="q1">Buscar en el sitio</label><input id="q1" name="q" placeholder="¿Qué estás buscando?"><button class="btn">${ic('search')} Buscar</button></div></form></header>`;
+}
+function impFooter() {
+  const i = inst(); const soc = uSoc();
+  const col = (title, links) => `<nav aria-label="${esc(title)}"><h2>${esc(title)}</h2><ul>${links.map(([h, l]) => `<li><a ${linkAttrs(h)}>${esc(l)}</a></li>`).join('')}</ul></nav>`;
+  return `<footer class="site-footer i-foot"><div class="wrap i-f">
+    <section><h2>Nuestros programas</h2><ul class="i-inline">${progs().map(p => `<li><a href="#/programas/${esc(p.slug)}">${esc(p.nombre)}</a></li>`).join('')}</ul>
+      <h2>Atención al público</h2><ul class="i-inline i-at"><li><a href="tel:${esc(String(i.telefono || '').replace(/\D/g, ''))}">${esc(i.telefono)}</a></li><li><a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a></li><li>${esc(i.direccion)}</li></ul></section>
+    ${col('Institucional', [['#/nosotros/presentacion', 'Nosotros'], ['#/transparencia/documentos-gestion', 'Portal de transparencia'], ['#/politica-de-privacidad', 'Política de privacidad'], ['#/terminos-de-uso', 'Términos de uso']])}
+    ${col('Comunidad', [['#/eventos', 'Eventos'], ['#/noticias', 'Noticias'], ['#/contacto', 'Contáctanos'], ['#/admin', 'Intranet']])}
+    <section><h2>Enlaces institucionales</h2><div class="i-flogos"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a><a ${linkAttrs(ext('dre') || 'https://www.dreica.gob.pe/')}>DRE Ica</a></div></section>
+  </div>
+  <div class="wrap i-f2"><a href="#/servicios/libro-de-reclamaciones" class="i-lr">${ic('book')}<span>Libro de<br>Reclamaciones</span></a>${soc ? `<div class="social i-soc" aria-label="Redes sociales">${soc}</div>` : ''}</div>
+  <div class="i-fb">${esc(i.nombre)}${i.ruc ? ' – RUC N.° ' + esc(i.ruc) : ''} · © ${yearNow()}</div></footer>
+  ${DB.config.whatsapp.activo && DB.config.whatsapp.numero ? `<a class="wa" href="https://wa.me/${esc(DB.config.whatsapp.numero)}?text=${encodeURIComponent(DB.config.whatsapp.mensaje)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${bic('whatsapp')}</a>` : ''}`;
+}
+/* bloques de portada del diseño «Impacto»: mismos bloques y mismo orden/visibilidad que configura Portada */
+function impBlocks(base, h, i) {
+  const ps = progs(); const sl = sortO(P('slides').filter(isPub));
+  const pics = [...sl.map(s => s.imagen), ...ps.map(p => p.imagen)].filter(Boolean);
+  const loc = P('locales').filter(isPub).find(l => l.foto);
+  const dirJ = P('jerarquica').find(j => j.esDirector) || {}; const dir = persona(dirJ.personaId);
+  return Object.assign({}, base, {
+    slider: () => { const html = base.slider(); return html ? html.replace(/<\/section>\s*$/, `<a class="i-down" href="#i-start" aria-label="Ir al contenido de la portada"><span aria-hidden="true"></span></a></section><span id="i-start"></span>`) : ''; },
+    programas: () => ps.length ? `<section class="i-sec i-prog"><div class="wrap"><h2 class="i-ttl i-gold">Programas de estudio</h2><div class="i-tiles">${ps.map(p => `<a class="i-tile" href="#/programas/${esc(p.slug)}"><img src="${img(p.imagen)}" alt="" loading="lazy"><b>${esc(p.nombre)}</b></a>`).join('')}</div><p class="i-c"><a class="i-btn" href="#/programas">${ic('search')} Ver programas de estudio</a></p></div></section>` : '',
+    bienvenida: () => { const pr = page('presentacion'); if (!pr || !isPub(pr)) return '';
+      return `<section class="i-sec"><div class="wrap i-duo"><a class="i-pa" href="#/nosotros/presentacion"><img src="${img(dir && dir.foto || pics[0])}" alt="" loading="lazy"><span><i aria-hidden="true">+</i>Mensaje de la<br>Dirección General</span></a><a class="i-pb" href="#/nosotros/campus-e-informes"><img src="${img(loc && loc.foto || pics[1] || pics[0])}" alt="" loading="lazy"><span><b>Nuestro campus</b><small>${esc(i.direccion)}</small></span></a></div></section>`; },
+    accesos: () => { const qs = h.accesos.map(a => { const u = resolveLink(a.enlace); return u ? `<a class="i-box" ${linkAttrs(u)}><i aria-hidden="true">+</i><span><b>${esc(a.titulo)}</b><small>${esc(a.texto)}</small></span></a>` : ''; }).filter(Boolean);
+      return qs.length ? `<section class="i-sec"><div class="wrap"><h2 class="i-ttl">Conoce nuestros servicios en línea:</h2><div class="i-boxes">${qs.join('')}</div></div></section>` : ''; },
+    beneficios: () => `<section class="i-sec"><div class="wrap"><h2 class="i-ttl">¿Por qué estudiar en el ${esc(i.nombreCorto)}?</h2><div class="i-boxes">${h.beneficios.slice(0, 8).map(b => `<details class="i-box i-acc"><summary><i aria-hidden="true">+</i><b>${esc(b.t)}</b></summary><p>${esc(b.d)}</p></details>`).join('')}</div></div></section>`,
+    cifras: () => { const cs = h.cifras.filter(x => String(cifra(x.valor)).trim()); if (!cs.length) return '';
+      return `<section class="i-black" aria-label="Cifras institucionales" data-iach><div class="wrap i-ach">${cs.map((x, k) => `<div class="i-ach-i${k ? '' : ' on'}"${k ? ' hidden' : ''}><div><span class="i-num">${String(k + 1).padStart(2, '0')}</span><h2>${esc(cifra(x.valor))} ${esc(x.label)}</h2><p>${esc(i.descripcion)}</p><small>Corte: ${esc(x.corte)}</small></div><figure>${pics[k % Math.max(pics.length, 1)] ? `<img src="${img(pics[k % pics.length])}" alt="" loading="lazy">` : ''}</figure></div>`).join('')}
+        ${cs.length > 1 ? `<div class="i-ach-n"><button type="button" data-iach="-1" aria-label="Anterior">‹</button><button type="button" data-iach="1">Siguiente <span aria-hidden="true">›</span></button></div>` : ''}</div></section>`; },
+    noticias: () => { const ns = pubNews().slice(0, 3); return `<section class="i-sec"><div class="wrap">${iHead('Noticias', '#/noticias')}${ns.length ? `<div class="i-cards">${ns.map(n => `<article class="i-card"><img src="${img(n.imagen, 'ph:campus:4')}" data-fit="${newsImageFit(n)}" alt="" loading="lazy"><div><time datetime="${esc(n.fecha)}">${iFecha(n.fecha)}</time><h3><a href="#/noticias/${esc(n.slug)}">${esc(n.titulo)}</a></h3><a class="i-lk" href="#/noticias/${esc(n.slug)}" aria-hidden="true" tabindex="-1">Leer</a></div></article>`).join('')}</div>` : emptyMsg('noticias')}</div></section>`; },
+    eventos: () => { const ev = P('eventos').filter(e => isPub(e) && new Date(e.fecha) >= new Date(new Date().toDateString())).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 3); if (!ev.length) return '';
+      return `<section class="i-sec"><div class="wrap">${iHead('Eventos', '#/eventos')}<div class="i-cards">${ev.map(e => `<article class="i-card"><img src="${img(e.imagen, 'ph:campus:2')}" alt="" loading="lazy"><div><time datetime="${esc(e.fecha)}">${iFecha(e.fecha, false)}</time><h3><a href="#/eventos">${esc(e.titulo)}</a></h3><a class="i-lk" href="#/eventos" aria-hidden="true" tabindex="-1">Ver detalle</a></div></article>`).join('')}</div></div></section>`; },
+    jerarquica: () => { const js = sortO(P('jerarquica').filter(isPub)).map(j => ({ j, p: persona(j.personaId) })).filter(x => x.p); if (!js.length) return '';
+      return `<section class="i-sec i-team"><div class="wrap"><h2 class="i-ttl i-cen">Conoce a nuestro equipo directivo</h2></div>${uCar(js.map(({ j, p }) => `<a class="i-tile i-tile-w" href="#/nosotros/plana-jerarquica"><img src="${img(p.foto)}" alt="" loading="lazy"><b>${esc(fullName(p))}<small>${esc(j.cargo)}</small></b></a>`), 'Plana jerárquica')}</section>`; },
+    testimonios: () => { const es = P('egresados').filter(isPub).slice(0, 3); if (!es.length) return '';
+      return `<section class="i-sec"><div class="wrap">${iHead('Nuestros egresados', '')}<div class="i-cards">${es.map(e => `<figure class="i-card i-q"><img src="${img(e.foto)}" alt="" loading="lazy"><figcaption><q>${esc(clamp(e.testimonio || '', 170))}</q><b>${esc(e.nombres)}</b><small>${esc((progById(e.programaId) || {}).nombre || '')} · Promoción ${esc(e.anio)}</small></figcaption></figure>`).join('')}</div></div></section>`; },
+    enlaces: () => { const all = coll('enlaces').filter(l => !l.deleted && ext(l.id)); let ls = all.filter(l => l.grupo === 'minedu'); if (!ls.length) ls = all.filter(l => l.grupo === 'Institucional' && l.id !== 'web'); if (!ls.length) return '';
+      return `<section class="i-sec"><div class="wrap"><h2 class="i-ttl i-cen">Plataformas del Estado</h2><div class="i-logos">${ls.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><b>${esc((l.id.length <= 10 ? l.id : l.nombre.split(/\s+/)[0]).toUpperCase())}</b><small>${esc(l.nombre)}</small><span class="sr-only"> (se abre en una pestaña nueva)</span></a>`).join('')}</div></div></section>`; },
+  });
+}
 function bannerHTML(b, slim = false) {
   /* En los servicios en línea (formularios) el banner es bajo para que el formulario quede a la vista. */
   return `<section class="page-banner${slim ? ' slim' : ''}" aria-label="Banner de la sección"><img class="bg" src="${img(b.img || (DB.locales || []).find(l => isPub(l))?.foto || inst().logo)}" alt=""><div class="wrap">${b.kicker ? `<div class="kicker">${esc(b.kicker)}</div>` : ''}<p class="ttl" aria-hidden="true">${esc(b.title)}</p>${b.text ? `<p>${esc(b.text)}</p>` : ''}</div></section>`;
@@ -802,7 +867,7 @@ R('', path => {
     eventos: () => { const ev = P('eventos').filter(e => isPub(e) && new Date(e.fecha) >= new Date(new Date().toDateString())).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 3); return ev.length ? `<section class="sec"><div class="wrap"><div class="sec-h"><span class="kicker">Agenda</span><h2>Próximos eventos</h2></div><div class="grid g3">${ev.map(eventCard).join('')}</div><p style="text-align:center;margin-top:18px"><a class="btn sec" href="#/eventos">Ver agenda completa</a></p></div></section>` : ''; },
     enlaces: () => `<section class="sec alt"><div class="wrap"><div class="sec-h"><span class="kicker">Plataformas del Estado</span><h2>Enlaces institucionales</h2></div>${mineduLinks()}</div></section>`,
   };
-  const B = isUni() ? uniBlocks(blocks, h, i) : blocks;
+  const B = isUni() ? uniBlocks(blocks, h, i) : isImp() ? impBlocks(blocks, h, i) : blocks;
   const body = h.bloques.filter(b => b.on && B[b.k]).map(b => B[b.k]()).join('');
   const admission = admVigente();
   const announcement = admission ? `<p class="home-announcement">Admisión ${esc(admission.anio)} · ${esc(admission.subtitulo || 'Consulta nuestros programas de estudio')}</p>` : '';
@@ -1467,6 +1532,8 @@ function bindPublicChrome() {
   if (ua) { const box = $('.u-acc'), m = $('#u-acc'); const close = focus => { m.classList.remove('open'); ua.setAttribute('aria-expanded', 'false'); if (focus) ua.focus(); };
     box.addEventListener('keydown', e => { if (e.key === 'Escape' && m.classList.contains('open')) { e.stopPropagation(); close(true); } });
     box.addEventListener('focusout', e => { if (e.relatedTarget && !box.contains(e.relatedTarget)) close(false); }); }
+  $$('[data-iach]').forEach(sec => { if (!sec.matches('section')) return; const its = $$('.i-ach-i', sec); let k = 0;
+    $$('button[data-iach]', sec).forEach(b => b.onclick = () => { its[k].hidden = true; its[k].classList.remove('on'); k = (k + (+b.dataset.iach) + its.length) % its.length; its[k].hidden = false; its[k].classList.add('on'); }); });
   const us = $('.u-sb'); if (us) { const f = $('#u-srch'); us.onclick = () => { f.hidden = !f.hidden; us.setAttribute('aria-expanded', !f.hidden); if (!f.hidden) $('input', f).focus(); };
     f.addEventListener('keydown', e => { if (e.key === 'Escape') { f.hidden = true; us.setAttribute('aria-expanded', 'false'); us.focus(); } }); }
   $$('.u-car').forEach(c => { const t = $('.pcar-t', c); let d = c.nextElementSibling; if (!d || !d.classList.contains('u-dots')) { d = document.createElement('div'); d.className = 'u-dots'; c.after(d); }
