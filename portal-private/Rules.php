@@ -126,6 +126,8 @@ final class PortalRules
             if(!empty($popup['inicio'])&&!empty($popup['fin'])&&$popup['fin']<$popup['inicio'])throw new PortalError(422,'La fecha final del comunicado debe ser posterior a la inicial.');
             if(!$link($popup['enlace']??''))throw new PortalError(422,'El enlace del comunicado no es válido.');
             if(!empty($popup['imagen'])&&!self::safeImage($popup['imagen']))throw new PortalError(422,'La imagen del comunicado no es válida.');
+            if(!in_array($popup['modelo']??'clasico',['','clasico','promocional'],true))throw new PortalError(422,'El modelo de la ventana emergente no es válido.');
+            foreach(['etiqueta'=>40,'antetitulo'=>60,'t1'=>40,'t2'=>40,'t3'=>40,'t4'=>40,'d1'=>80,'d2'=>80,'d3'=>80,'d4'=>80] as $key=>$max)if(isset($popup[$key])&&(!is_string($popup[$key])||mb_strlen($popup[$key])>$max))throw new PortalError(422,'Un texto de la ventana emergente es demasiado largo.');
         }
         if($changed('inst')){
             $inst=$new['config']['inst']??[];foreach(['nombre','nombreCorto','direccion','telefono','correo','horario','fechaCreacion'] as $key)if(!is_string($inst[$key]??null)||trim($inst[$key])==='')throw new PortalError(422,'Completa el dato institucional '.$key.'.');

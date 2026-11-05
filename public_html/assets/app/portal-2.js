@@ -1689,9 +1689,39 @@ function maybePopup() {
   const p = DB.config.popup; if (!p.activo || PREVIEW) return;
   const today = new Date().toISOString().slice(0, 10); if ((p.inicio && today < p.inicio) || (p.fin && today > p.fin)) return;
   try { if (sessionStorage.getItem('popup_seen')) return; sessionStorage.setItem('popup_seen', '1'); } catch (e) { }
+  if (p.modelo === 'promocional') return promoPopup(p);
   const m = modal({ title: esc(p.titulo), size: 'sm', body: `${p.imagen ? `<img src="${img(p.imagen)}" alt="" style="border-radius:10px;margin-bottom:12px;aspect-ratio:16/10;object-fit:cover;width:100%">` : ''}<p>${esc(p.texto)}</p>`, foot: p.enlace ? `<a class="btn gold" ${linkAttrs(p.enlace)} data-go>${esc(p.boton || 'Ver más')}</a>` : '' });
   const g = $('[data-go]', m.el); if (g) g.addEventListener('click', () => m.close());
 }
+
+/* Ventana emergente «Promocional»: imagen a todo el fondo, título destacado y tarjetas encadenadas con flechas */
+const POP_TARJETAS = [1, 2, 3, 4];
+function promoCards(p) { return POP_TARJETAS.map(k => ({ t: String(p['t' + k] || '').trim(), d: String(p['d' + k] || '').trim() })).filter(c => c.t || c.d); }
+function promoHTML(p) {
+  const cs = promoCards(p); const i = inst();
+  return `<div class="pp" role="dialog" aria-modal="true" aria-labelledby="pp-t" ${p.texto ? 'aria-describedby="pp-d"' : ''}>
+    ${p.imagen ? `<img class="pp-bg" src="${img(p.imagen)}" alt="">` : ''}<i class="pp-shade" aria-hidden="true"></i>
+    <button type="button" class="pp-x" aria-label="Cerrar ventana">✕</button>
+    <div class="pp-top"><span class="pp-logo"><img src="${logoSrc()}" alt=""><b>${esc(i.logoSigla || i.nombreCorto)}</b></span>${p.etiqueta ? `<span class="pp-tag">${esc(p.etiqueta)}</span>` : ''}</div>
+    <div class="pp-main">${p.antetitulo ? `<p class="pp-pre">${esc(p.antetitulo)}</p>` : ''}<h2 id="pp-t">${esc(p.titulo)}</h2>${p.texto ? `<p class="pp-txt" id="pp-d">${esc(p.texto)}</p>` : ''}</div>
+    ${cs.length ? `<ol class="pp-cards pp-n${cs.length}">${cs.map((c, k) => `<li class="${k === cs.length - 1 && cs.length > 1 ? 'pp-last' : ''}">${c.t ? `<b>${esc(c.t)}</b>` : ''}${c.d ? `<span>${esc(c.d)}</span>` : ''}${k < cs.length - 1 ? '<i class="pp-arr" aria-hidden="true"></i>' : ''}</li>`).join('')}</ol>` : ''}
+    ${p.enlace ? `<p class="pp-cta"><a class="pp-btn" ${linkAttrs(p.enlace)} data-go>${esc(p.boton || 'Ver más')} <span aria-hidden="true">→</span></a></p>` : ''}
+  </div>`;
+}
+function promoPopup(p) {
+  const bg = document.createElement('div'); bg.className = 'pp-wrap'; bg.innerHTML = promoHTML(p);
+  const prev = document.activeElement;
+  const close = () => { bg.remove(); document.removeEventListener('keydown', onKey); document.documentElement.classList.remove('pp-open'); prev && prev.focus && prev.focus(); };
+  const onKey = e => { if (e.key === 'Escape') close(); if (e.key === 'Tab') { const f = $$('a[href],button', bg); const a = f[0], z = f[f.length - 1]; if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); } else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); } } };
+  bg.addEventListener('click', e => { if (e.target === bg) close(); });
+  $('.pp-x', bg).onclick = close; const g = $('[data-go]', bg); if (g) g.addEventListener('click', close);
+  document.addEventListener('keydown', onKey); document.body.appendChild(bg); document.documentElement.classList.add('pp-open');
+  setTimeout(() => $('.pp-x', bg).focus(), 30);
+  return { el: bg, close };
+}
+
+/* vista previa desde Portada › Ventana emergente */
+if (!window.__popPrev) { window.__popPrev = true; document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-popprev]'); if (!b) return; const f = b.closest('form') || document; const w = Object.assign({}, DB.config.popup); $$('[name]', f).forEach(x => { if (x.type === 'checkbox') w[x.name] = x.checked; else if (x.type !== 'file') w[x.name] = x.value; }); if (ADM.work && ADM.workKey && /Ventana emergente/.test(ADM.workKey)) Object.assign(w, { imagen: ADM.work.imagen }); if (!w.titulo) w.titulo = 'Título de la ventana'; if (w.modelo === 'promocional') promoPopup(w); else { const m = modal({ title: esc(w.titulo), size: 'sm', body: `${w.imagen ? `<img src="${img(w.imagen)}" alt="" style="border-radius:10px;margin-bottom:12px;aspect-ratio:16/10;object-fit:cover;width:100%">` : ''}<p>${esc(w.texto || '')}</p>`, foot: w.enlace ? `<span class="btn gold">${esc(w.boton || 'Ver más')}</span>` : '' }); } }); }
 
 /* ==== admin1.js ==== */
 /* =========================================================
@@ -2454,7 +2484,15 @@ CUSTOM.licenciamiento = () => singletonForm({
 });
 CUSTOM.popup = () => singletonForm({
   title: 'Ventana emergente (comunicado)', icon: 'bell', tabs: portadaTabs('p'), crumbs: [['Portada', '#/admin/slides'], ['Ventana emergente']], get: () => DB.config.popup,
-  fields: [{ n: 'activo', l: 'Mostrar ventana emergente en la portada', t: 'checkbox', full: true }, { n: 'titulo', l: 'Título', req: true, full: true }, { n: 'texto', l: 'Texto', t: 'textarea', full: true }, { n: 'boton', l: 'Texto del botón' }, { n: 'enlace', l: 'Enlace', ph: '#/admision' }, { n: 'inicio', l: 'Mostrar desde', t: 'date' }, { n: 'fin', l: 'Mostrar hasta', t: 'date' }, { n: 'imagen', l: 'Imagen', t: 'image', full: true }],
+  sub: 'Elige el modelo «Comunicado» (ventana sencilla) o «Promocional» (imagen a todo el fondo, título grande y tarjetas encadenadas, ideal para admisión o campañas).',
+  fields: [{ n: 'activo', l: 'Mostrar ventana emergente en la portada', t: 'checkbox', full: true },
+    { n: 'modelo', l: 'Modelo de ventana', t: 'select', empty: false, opts: [['clasico', 'Comunicado (sencillo)'], ['promocional', 'Promocional (imagen de fondo y tarjetas)']], hint: 'El modelo promocional usa la imagen como fondo completo; conviene una foto horizontal o cuadrada.' },
+    { n: 'etiqueta', l: 'Etiqueta superior (promocional)', max: 40, ph: 'Admisión 2026' },
+    { n: 'antetitulo', l: 'Antetítulo (promocional)', max: 60, ph: 'Inscripciones abiertas', full: true },
+    { n: 'titulo', l: 'Título', req: true, full: true, max: 90 }, { n: 'texto', l: 'Texto', t: 'textarea', full: true, max: 300 },
+    ...POP_TARJETAS.flatMap(k => [{ n: 't' + k, l: `Tarjeta ${k}: título${k === 4 ? ' (destacada)' : ''}`, max: 40, ph: ['Título a nombre de la Nación', 'Horarios', 'Duración', 'Y ahora'][k - 1] }, { n: 'd' + k, l: `Tarjeta ${k}: texto`, max: 80, ph: ['Profesional Técnico', 'Mañana y tarde', '3 años (6 semestres)', 'Examen de admisión el 5 de abril'][k - 1] }]),
+    { n: 'boton', l: 'Texto del botón' }, { n: 'enlace', l: 'Enlace', ph: '#/admision' }, { n: 'inicio', l: 'Mostrar desde', t: 'date' }, { n: 'fin', l: 'Mostrar hasta', t: 'date' }, { n: 'imagen', l: 'Imagen', t: 'image', full: true }],
+  extra: `<div class="panel"><div class="pb" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span>Revisa cómo se verá antes de activarla:</span><button type="button" class="btn sec" data-popprev>Vista previa de la ventana</button></div></div>`,
   onSave: (w, er) => { if (w.inicio && w.fin && w.fin < w.inicio) er.fin = 'La fecha final debe ser posterior a la inicial.'; if (Object.keys(er).length) return; DB.config.popup = w; try { sessionStorage.removeItem('popup_seen'); } catch (e) { } },
 });
 function quickAccessSummary(accesses) {
