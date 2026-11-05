@@ -414,14 +414,28 @@ function checkFile(file, kind) {
 const readAsDataURL = f => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL(f); });
 const readAsText = f => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsText(f); });
 /* Comprime y redimensiona imágenes antes de guardarlas (biblioteca de medios) */
-async function compressImage(file, maxW = 1400) {
-  const src = await readAsDataURL(file);
+async function compressImage(file, maxW = 1400, opts = {}) {
+  const q = opts.q || .8; const src = await readAsDataURL(file);
   const im = new Image(); im.src = src; await im.decode();
-  const sc = Math.min(1, maxW / im.width, maxW / im.height); const c = document.createElement('canvas');
-  c.width = Math.round(im.width * sc); c.height = Math.round(im.height * sc);
-  c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-  let out = c.toDataURL('image/webp', .8); if (!out.startsWith('data:image/webp')) out = c.toDataURL('image/jpeg', .82);
+  compressImage.last = { w: im.naturalWidth, h: im.naturalHeight };
+  const sc = Math.min(1, maxW / im.width, maxW / im.height);
+  const W = Math.round(im.width * sc), H = Math.round(im.height * sc);
+  // Imagen grande ya liviana y del tamaño adecuado: se conserva tal cual (sin pérdida adicional).
+  if (opts.keep && sc === 1 && /^image\/(jpeg|webp)$/.test(file.type) && file.size <= opts.keep) return src;
+  // Reducción en pasos de 50 % con suavizado de alta calidad: evita el aspecto borroso o dentado.
+  let cur = im, cw = im.width, ch = im.height;
+  while (cw / 2 >= W * 1.05) { const t = document.createElement('canvas'); t.width = Math.round(cw / 2); t.height = Math.round(ch / 2); const x = t.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high'; x.drawImage(cur, 0, 0, t.width, t.height); cur = t; cw = t.width; ch = t.height; }
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(cur, 0, 0, W, H);
+  if (opts.sharpen && sc < 1) sharpenCanvas(c, opts.sharpen);
+  let out = c.toDataURL('image/webp', q); if (!out.startsWith('data:image/webp')) out = c.toDataURL('image/jpeg', Math.min(.95, q + .02));
   return out;
+}
+/* Enfoque suave (máscara de enfoque 3×3) para recuperar los bordes tras reducir la imagen */
+function sharpenCanvas(c, amt = .35) {
+  const ctx = c.getContext('2d'); const { width: w, height: h } = c; const src = ctx.getImageData(0, 0, w, h); const d = src.data; const o = new Uint8ClampedArray(d);
+  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) { const i = (y * w + x) * 4;
+    for (let k = 0; k < 3; k++) { const v = d[i + k], blur = (d[i - 4 + k] + d[i + 4 + k] + d[i - w * 4 + k] + d[i + w * 4 + k]) / 4; o[i + k] = v + (v - blur) * amt; } }
+  ctx.putImageData(new ImageData(o, w, h), 0, 0);
 }
 /* Nombre interno seguro para archivos subidos */
 const safeName = (orig, prefix = 'doc') => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}.${(orig.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '')}`;
@@ -958,7 +972,9 @@ R('', path => {
   const c = DB.config, h = c.home; const i = inst();
   setSEO({ title: '', desc: c.seo.descripcion });
   const blocks = {
-    slider: () => { const sl = sortO(P('slides').filter(isPub)); if (!sl.length) return ''; return `<section class="hero" aria-roledescription="carrusel" aria-label="Destacados">${sl.map((s, k) => `<div class="slide ${k ? '' : 'on'}" role="group" aria-roledescription="diapositiva" aria-label="${k + 1} de ${sl.length}">${k ? `<img data-src="${img(s.imagen)}" alt="" decoding="async">` : `<img src="${img(s.imagen)}" alt="" fetchpriority="high">`}<div class="cap"><div class="wrap"><span class="hero-kicker">${ic('grad')} ${esc(inst().nombreCorto)}</span><h2>${esc(s.titulo)}</h2><p>${esc(s.texto)}</p>${s.boton && resolveLink(s.enlace) ? `<a class="btn gold" ${linkAttrs(resolveLink(s.enlace))}>${esc(s.boton)} ${ic('arrow').replace('<svg', '<svg style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"')}</a>` : ''}</div></div></div>`).join('')}${sl.length > 1 ? `<button class="hero-arrow l" data-sl="-1" aria-label="Diapositiva anterior">‹</button><button class="hero-arrow r" data-sl="1" aria-label="Diapositiva siguiente">›</button><div class="hero-dots">${sl.map((_, k) => `<button data-dot="${k}" aria-label="Ir a diapositiva ${k + 1}" aria-current="${k === 0}"></button>`).join('')}</div>` : ''}</section>`; },
+    slider: () => { const sl = sortO(P('slides').filter(isPub)); if (!sl.length) return ''; return `<section class="hero" aria-roledescription="carrusel" aria-label="Destacados">${sl.map((s, k) => { const fit = s.ajuste === 'contain'; const pos = { left: '0% 50%', right: '100% 50%', top: '50% 0%', bottom: '50% 100%' }[s.enfoque] || '50% 50%'; const st = `style="object-position:${pos}"`;
+      const im = cls => k ? `<img class="${cls}" data-src="${img(s.imagen)}" alt="" decoding="async" ${st}>` : `<img class="${cls}" src="${img(s.imagen)}" alt="" fetchpriority="high" ${st}>`;
+      return `<div class="slide ${k ? '' : 'on'}${fit ? ' sl-contain' : ''}${s.capa ? ' capa-' + esc(s.capa) : ''}${s.realce === 'no' ? '' : ' sl-realce'}" role="group" aria-roledescription="diapositiva" aria-label="${k + 1} de ${sl.length}">${fit ? `<img class="sl-blur" ${k ? `data-src="${img(s.imagen)}"` : `src="${img(s.imagen)}"`} alt="" aria-hidden="true">` : ''}${im('sl-img')}<div class="cap"><div class="wrap"><span class="hero-kicker">${ic('grad')} ${esc(inst().nombreCorto)}</span><h2>${esc(s.titulo)}</h2><p>${esc(s.texto)}</p>${s.boton && resolveLink(s.enlace) ? `<a class="btn gold" ${linkAttrs(resolveLink(s.enlace))}>${esc(s.boton)} ${ic('arrow').replace('<svg', '<svg style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"')}</a>` : ''}</div></div></div>`; }).join('')}${sl.length > 1 ? `<button class="hero-arrow l" data-sl="-1" aria-label="Diapositiva anterior">‹</button><button class="hero-arrow r" data-sl="1" aria-label="Diapositiva siguiente">›</button><div class="hero-dots">${sl.map((_, k) => `<button data-dot="${k}" aria-label="Ir a diapositiva ${k + 1}" aria-current="${k === 0}"></button>`).join('')}</div>` : ''}</section>`; },
     accesos: () => { const qs = h.accesos.map(a => { const u = resolveLink(a.enlace); return u ? `<a ${linkAttrs(u)}><span class="ic">${ic(a.icono)}</span><span><strong>${esc(a.titulo)}</strong><small>${esc(a.texto)}</small></span></a>` : ''; }).filter(Boolean); return `<section class="wrap quick" aria-label="Accesos rápidos"><div class="grid ${qs.length > 4 ? 'g3 q-many' : 'g4'}">${qs.join('')}</div></section>`; },
     bienvenida: () => { const pr = page('presentacion'); const dir = persona((P('jerarquica').find(j => j.esDirector) || {}).personaId); if (!pr || !isPub(pr)) return ''; const ps = (pr.contenido.match(/<p>[\s\S]*?<\/p>/g) || []).slice(0, 2).join(''); return `<section class="sec"><div class="wrap welcome"><img src="${img(dir && dir.foto)}" alt="Fotografía de ${esc(fullName(dir))}" loading="lazy"><div><div class="sec-h" style="text-align:left;margin:0 0 10px"><span class="kicker">Bienvenida</span><h2>Mensaje de la Dirección General</h2></div><div class="prose">${sanitize(ps)}</div><p><strong>${esc(fullName(dir))}</strong><br><span style="color:var(--muted)">${esc((P('jerarquica').find(j => j.esDirector) || {}).cargo || '')}</span></p><a class="btn" href="#/nosotros/presentacion">Leer presentación completa</a></div></div></section>`; },
     cifras: () => `<section class="sec stats" aria-label="Cifras institucionales"><div class="wrap grid g4 stats-n${Math.min(h.cifras.length, 4)}">${h.cifras.map((x, k) => `<div class="stat cif${cifLink(x) ? ' cif-a' : ''}"><span class="st-ic">${ic(['calendar', 'grad', 'users', 'award', 'star', 'building'][k % 6])}</span><b>${cifNum(cifra(x.valor))}</b><span>${esc(x.label)}</span><small>Corte: ${esc(x.corte)}</small>${cifA(x)}</div>`).join('')}</div></section>`,
@@ -1707,7 +1723,7 @@ function bindPublicChrome() {
   if (slides.length > 1) {
     let k = 0, paused = false; const show = n => { k = (n + slides.length) % slides.length;
       // Solo se descargan la diapositiva visible y la siguiente (antes bajaban todas, ~9 MB en la portada).
-      [k, (k + 1) % slides.length].forEach(j => { const im = slides[j].querySelector('img[data-src]'); if (im) { im.src = im.dataset.src; im.removeAttribute('data-src'); } }); slides.forEach((s, i) => { s.classList.toggle('on', i === k); s.inert = i !== k; if (i === k) s.removeAttribute('aria-hidden'); else s.setAttribute('aria-hidden', 'true'); }); $$('[data-dot]').forEach((d, i) => d.setAttribute('aria-current', i === k)); };
+      [k, (k + 1) % slides.length].forEach(j => { slides[j].querySelectorAll('img[data-src]').forEach(im => { im.src = im.dataset.src; im.removeAttribute('data-src'); }); }); slides.forEach((s, i) => { s.classList.toggle('on', i === k); s.inert = i !== k; if (i === k) s.removeAttribute('aria-hidden'); else s.setAttribute('aria-hidden', 'true'); }); $$('[data-dot]').forEach((d, i) => d.setAttribute('aria-current', i === k)); };
     show(0);
     $$('[data-sl]').forEach(b => b.onclick = () => show(k + +b.dataset.sl)); $$('[data-dot]').forEach(b => b.onclick = () => show(+b.dataset.dot));
     const hero = $('.hero'); hero.onmouseenter = () => paused = true; hero.onmouseleave = () => paused = false; hero.addEventListener('focusin', () => paused = true); hero.addEventListener('focusout', () => paused = false);
@@ -1929,8 +1945,12 @@ function bindFields(fields, work, root, rerender) {
   $$('[data-imgf]', root).forEach(inp => inp.onchange = () => editorFileTask(inp, async () => {
     const f = inp.files[0]; if (!f) return; const n = inp.dataset.imgf; const er = checkFile(f, 'image'); if (er) { inp.value = ''; return toast(er, 'err'); }
     if (work[n] && !await confirmBox('¿Reemplazar la imagen actual por la nueva?', { ok: 'Reemplazar', danger: false })) { inp.value = ''; return; }
-    const image = await compressImage(f); if (ADM.work !== work) return;
-    work[n] = image; rerender(); toast('Imagen cargada y optimizada (' + fsize(work[n].length * .75) + ').', 'ok');
+    const fd = (fields || []).find(x => x.n === n) || {};
+    const image = fd.hq ? await compressImage(f, 2560, { q: .9, sharpen: .35, keep: 900 * 1024 }) : await compressImage(f); if (ADM.work !== work) return;
+    work[n] = image; rerender();
+    const dim = compressImage.last || {};
+    if (fd.hq && dim.w && dim.w < 1600) toast(`Imagen cargada, pero mide ${dim.w} × ${dim.h} px: se verá borrosa en pantallas grandes. Use una de al menos 1920 × 800 px.`, 'warn');
+    else toast('Imagen cargada y optimizada (' + fsize(work[n].length * .75) + (dim.w ? `, original ${dim.w} × ${dim.h} px` : '') + ').', 'ok');
   }));
   $$('[data-imgx]', root).forEach(b => b.onclick = async () => { if (await confirmBox('¿Retirar la imagen? Se usará la imagen institucional predeterminada.', { ok: 'Retirar' })) { work[b.dataset.imgx] = ''; rerender(); } });
   $$('[data-ff]', root).forEach(inp => inp.onchange = () => editorFileTask(inp, async () => {
@@ -2385,7 +2405,12 @@ SPECS.slides = {
   key: 'slides', mod: 'portada', coll: 'slides', title: 'Portada – carrusel', singular: 'diapositiva', icon: 'image', states: ESTADOS, label: r => r.titulo, order: true, preview: () => '#/',
   tabs: () => portadaTabs('s'),
   cols: [{ l: 'Orden', cls: 'c', f: r => r.orden }, { l: 'Imagen', f: r => thumb(r.imagen) }, { l: 'Título', f: r => `<b>${esc(r.titulo)}</b><br><small>${esc(r.texto)}</small>` }, { l: 'Botón', f: r => esc(r.boton) }, { l: 'Estado', f: r => stBadge(r.estado) }],
-  fields: [{ n: 'titulo', l: 'Título', req: true, full: true, max: 70 }, { n: 'texto', l: 'Texto', t: 'textarea', full: true, max: 180 }, { n: 'boton', l: 'Texto del botón', max: 30 }, { n: 'enlace', l: 'Enlace del botón', ph: '#/admision o https://…' }, { n: 'imagen', l: 'Imagen (escritorio, 1600×600 px aprox.)', t: 'image', full: true, req: true }, { n: 'orden', l: 'Orden', t: 'number', side: true, req: true, min: 1 }],
+  fields: [{ n: 'titulo', l: 'Título', req: true, full: true, max: 70 }, { n: 'texto', l: 'Texto', t: 'textarea', full: true, max: 180 }, { n: 'boton', l: 'Texto del botón', max: 30 }, { n: 'enlace', l: 'Enlace del botón', ph: '#/admision o https://…' }, { n: 'imagen', l: 'Imagen de la portada', t: 'image', full: true, req: true, hq: true, hint: 'Medida recomendada: 1920 × 800 px o mayor (ideal 2560 × 1066 px), JPG o WEBP. Se guarda en alta calidad (hasta 2560 px). Deje lo importante lejos de los bordes.' },
+    { n: 'ajuste', l: 'Ajuste de la imagen', t: 'select', empty: false, opts: [['cover', 'Llenar el espacio (fotos)'], ['contain', 'Mostrar completa (afiches con texto)']], hint: '«Mostrar completa» evita que se recorte el texto de un afiche; los bordes se rellenan con la misma imagen difuminada.' },
+    { n: 'enfoque', l: 'Punto de enfoque', t: 'select', empty: false, opts: [['center', 'Centro'], ['left', 'Izquierda'], ['right', 'Derecha'], ['top', 'Arriba'], ['bottom', 'Abajo']], hint: 'Parte de la foto que no debe recortarse.' },
+    { n: 'capa', l: 'Oscurecido para el texto', t: 'select', empty: false, opts: [['', 'Según el diseño (recomendado)'], ['suave', 'Suave'], ['fuerte', 'Fuerte'], ['ninguna', 'Sin oscurecer']] },
+    { n: 'realce', l: 'Realce de imagen (contraste y color)', t: 'select', empty: false, opts: [['', 'Sí (recomendado)'], ['no', 'No']] },
+    { n: 'orden', l: 'Orden', t: 'number', side: true, req: true, min: 1 }],
   validate: w => w.enlace && !/^(#\/|https?:\/\/|ext:)/.test(w.enlace) ? { enlace: 'Use una ruta interna (#/…) o una URL completa (https://…). No use “#” vacío.' } : (w.boton && !w.enlace ? { enlace: 'Indique el enlace del botón.' } : {}),
 };
 const portadaTabs = a => tabsBar([['s', 'Carrusel', '#/admin/slides'], ['b', 'Bloques, accesos y cifras', '#/admin/portada'], ['p', 'Ventana emergente', '#/admin/popup']], a);
@@ -2531,7 +2556,7 @@ CUSTOM.popup = () => singletonForm({
     { n: 'antetitulo', l: 'Antetítulo (promocional)', max: 60, ph: 'Inscripciones abiertas', full: true },
     { n: 'titulo', l: 'Título', req: true, full: true, max: 90 }, { n: 'texto', l: 'Texto', t: 'textarea', full: true, max: 300 },
     ...POP_TARJETAS.flatMap(k => [{ n: 't' + k, l: `Tarjeta ${k}: título${k === 4 ? ' (destacada)' : ''}`, max: 40, ph: ['Título a nombre de la Nación', 'Horarios', 'Duración', 'Y ahora'][k - 1] }, { n: 'd' + k, l: `Tarjeta ${k}: texto`, max: 80, ph: ['Profesional Técnico', 'Mañana y tarde', '3 años (6 semestres)', 'Examen de admisión el 5 de abril'][k - 1] }]),
-    { n: 'boton', l: 'Texto del botón' }, { n: 'enlace', l: 'Enlace', ph: '#/admision' }, { n: 'inicio', l: 'Mostrar desde', t: 'date' }, { n: 'fin', l: 'Mostrar hasta', t: 'date' }, { n: 'imagen', l: 'Imagen', t: 'image', full: true }],
+    { n: 'boton', l: 'Texto del botón' }, { n: 'enlace', l: 'Enlace', ph: '#/admision' }, { n: 'inicio', l: 'Mostrar desde', t: 'date' }, { n: 'fin', l: 'Mostrar hasta', t: 'date' }, { n: 'imagen', l: 'Imagen', t: 'image', full: true, hq: true, hint: 'Para el modelo promocional: imagen cuadrada u horizontal de al menos 1200 px; se guarda en alta calidad.' }],
   extra: `<div class="panel"><div class="pb" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span>Revisa cómo se verá antes de activarla:</span><button type="button" class="btn sec" data-popprev>Vista previa de la ventana</button></div></div>`,
   onSave: (w, er) => { if (w.inicio && w.fin && w.fin < w.inicio) er.fin = 'La fecha final debe ser posterior a la inicial.'; if (Object.keys(er).length) return; DB.config.popup = w; try { sessionStorage.removeItem('popup_seen'); } catch (e) { } },
 });

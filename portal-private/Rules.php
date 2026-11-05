@@ -33,6 +33,7 @@ final class PortalRules
         foreach($new['slides'] as $slide)if(!($slide['deleted']??false)&&self::changed($old['slides'],$slide)){
             if(!self::safeLink($slide['enlace']??''))throw new PortalError(422,'El enlace del carrusel debe ser una ruta interna, ext:id o una URL http/https válida.');
             if(!empty($slide['boton'])&&empty($slide['enlace']))throw new PortalError(422,'Indica el enlace del botón del carrusel.');
+            foreach(['ajuste'=>['','cover','contain'],'enfoque'=>['','center','left','right','top','bottom'],'capa'=>['','suave','fuerte','ninguna'],'realce'=>['','no']] as $key=>$allowed)if(!in_array($slide[$key]??'',$allowed,true))throw new PortalError(422,'Una opción de imagen del carrusel no es válida.');
         }
         foreach($new['estadisticas'] as $row)if(self::changed($old['estadisticas'],$row)){
             if(filter_var($row['anio']??null,FILTER_VALIDATE_INT)===false||$row['anio']<2000||$row['anio']>2100||!PortalPolicy::find($new['programas'],'id',$row['programaId']??null))throw new PortalError(422,'El año y programa de la estadística deben ser válidos.');

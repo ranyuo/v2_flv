@@ -1243,7 +1243,7 @@ a.kpi:hover{transform:translateY(-3px);box-shadow:var(--sh2)}
 [data-mode="dark"] .chart text{fill:var(--muted)}
 [data-mode="dark"] .chart .val{fill:var(--ink)}
 [data-mode="dark"] .f-logos a{background:var(--card2)}
-[data-mode="dark"] .slide img,[data-mode="dark"] .page-banner img.bg,[data-mode="dark"] .prog-hero img{filter:brightness(.8) saturate(.9)}
+[data-mode="dark"] .slide img,[data-mode="dark"] .page-banner img.bg,[data-mode="dark"] .prog-hero img{filter:brightness(.86) contrast(1.1) saturate(1.04)}
 [data-mode="dark"] img[src^="data:image/svg"]:not(.bg){filter:brightness(.92)}
 [data-mode="dark"] .welcome img{box-shadow:24px 24px 0 -6px var(--sky),var(--sh2)}
 [data-mode="dark"] .site-header{background:var(--card)}
@@ -3390,3 +3390,19 @@ form[data-bs] .btn{white-space:nowrap;flex:none}
 /* el número animado conserva siempre el estilo de su cifra */
 .cif-n{display:inline-block!important;font:inherit!important;color:inherit!important;text-transform:none!important;letter-spacing:inherit!important;margin:0!important;padding:0!important;text-align:inherit!important}
 .u-nums .stat .cif-n,.u-big .cif-n{text-align:left!important}
+
+/* ===== Portada: fotos nítidas ===== */
+/* Realce: compensa el oscurecido con contraste y color, así la foto se ve viva y definida */
+.slide.sl-realce .sl-img{filter:contrast(1.07) saturate(1.1)}
+[data-mode="dark"] .slide.sl-realce .sl-img{filter:brightness(.88) contrast(1.13) saturate(1.1)}
+.slide .sl-img{image-rendering:auto;backface-visibility:hidden;transform:translateZ(0)}
+/* Mostrar completa (afiches con texto): imagen entera sobre la misma imagen difuminada */
+.slide .sl-blur{position:absolute;inset:-30px;width:calc(100% + 60px);height:calc(100% + 60px);object-fit:cover;filter:blur(22px) brightness(.7) saturate(1.15)!important}
+.slide.sl-contain .sl-img{position:relative;z-index:0;object-fit:contain}
+.slide.sl-contain::after{opacity:.75}
+/* Intensidad del oscurecido por diapositiva (el diseño define el color y la dirección) */
+.slide.capa-suave::after{opacity:.55}
+.slide.capa-fuerte::after{opacity:1}
+.slide.capa-fuerte .sl-img{filter:brightness(.82) contrast(1.1) saturate(1.05)!important}
+.slide.capa-ninguna::after{opacity:0}
+.slide.capa-ninguna .cap h2,.slide.capa-ninguna .cap p{text-shadow:0 2px 12px rgba(0,0,0,.65)}
