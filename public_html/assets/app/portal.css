@@ -3011,3 +3011,8 @@ tr.pz-bad td{background:var(--errbg)}
 .ds-cprev .p-ttl{background:#fff;color:var(--t);border:1px solid var(--line);font-size:16px}
 .ds-cprev .p-box{background:var(--a);color:var(--ao)}.ds-cprev .p-dark{background:var(--o);color:#fff}
 @media (max-width:700px){.ds-cprev{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ds-pre{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0 0}
+.ds-pre>span{font-size:13px;font-weight:700;color:var(--muted)}
+.ds-pb{display:inline-flex;align-items:center;gap:3px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:5px 12px 5px 6px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink)}
+.ds-pb i{width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}.ds-pb i:last-of-type{margin-right:6px}
+.ds-pb:hover{border-color:var(--blue)}

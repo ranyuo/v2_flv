@@ -199,6 +199,14 @@ function themeVars(t) {
 /* Colores de los diseños «Impacto» y «Impacto FLV»: vacío = color tomado del tema activo */
 const IMP_KEYS = ['impacto', 'impacto-flv'];
 const IMP_CAMPOS = [['acento', 'Color de acento', 'Bloque del logotipo, recuadros, títulos destacados y detalles'], ['oscuro', 'Color oscuro', 'Franja de cifras, pie de página y banner de las páginas interiores'], ['boton', 'Botón «Postula»', 'Botón principal de la cabecera'], ['titulos', 'Títulos', 'Color de los títulos sobre fondo blanco']];
+/* combinaciones sugeridas: todas con la paleta del escudo del FLV, probadas por contraste */
+const IMP_PRESETS = [
+  ['FLV institucional', { acento: '#f2b705', oscuro: '#0c2a5b', boton: '#1e5fc8', titulos: '#0c2a5b' }],
+  ['Azul y oro', { acento: '#f2b705', oscuro: '#16449a', boton: '#0c2a5b', titulos: '#16449a' }],
+  ['Marino con detalles azules', { acento: '#1e5fc8', oscuro: '#0c2a5b', boton: '#f2b705', titulos: '#0c2a5b' }],
+  ['Noche y dorado', { acento: '#f2b705', oscuro: '#0b1530', boton: '#f2b705', titulos: '#0b1530' }],
+  ['Amarillo y negro', { acento: '#f2b705', oscuro: '#000000', boton: '#1e5fc8', titulos: '#0d0d0d' }],
+];
 function impDefaults(key, t) { return key === 'impacto-flv' ? { acento: t.gold, oscuro: t.navy, boton: t.blue, titulos: t.navy } : { acento: t.gold, oscuro: '#000000', boton: t.blue, titulos: '#0d0d0d' }; }
 function impColors(key, t) { const d = impDefaults(key, t), c = ((DB.config.disenoColores || {})[key]) || {}; const o = {}; for (const [k] of IMP_CAMPOS) o[k] = /^#[0-9a-f]{6}$/i.test(c[k] || '') ? c[k] : d[k]; return o; }
 function impApplyColors(t) {
@@ -2796,6 +2804,7 @@ function impColorPanel(key) {
   const t = DB.config.temas[DB.config.tema]; const c = impColors(key, t), d = impDefaults(key, t); const label = (DISENOS.find(x => x[0] === key) || [])[1];
   return `<form class="ds-colors" data-impcol="${key}"><h3>Colores del diseño «${esc(label)}»</h3><p>Elige los colores y revisa la vista previa. «Restablecer» vuelve a los colores del tema activo.</p>
     <div class="ds-cgrid">${IMP_CAMPOS.map(([k, l, h]) => `<label class="ds-c"><span><b>${esc(l)}</b><small>${esc(h)}</small></span><input type="color" name="${k}" value="${esc(c[k])}" data-def="${esc(d[k])}"><code>${esc(c[k])}</code></label>`).join('')}</div>
+    <div class="ds-pre"><span>Combinaciones sugeridas:</span>${IMP_PRESETS.map(([n, v], k) => `<button type="button" class="ds-pb" data-imppre="${k}" title="${esc(n)}"><i style="background:${v.acento}"></i><i style="background:${v.oscuro}"></i><i style="background:${v.boton}"></i>${esc(n)}</button>`).join('')}</div>
     <div class="ds-cprev" aria-hidden="true"><i class="p-logo">Logo</i><i class="p-cta">Postula</i><i class="p-ttl">Títulos</i><i class="p-box">+ Recuadro</i><i class="p-dark">Franja y pie</i></div>
     <div class="tm-acts"><button class="btn sm" type="submit">${sic('check', 14)} Guardar colores</button><button class="btn sm sec" type="button" data-impreset>Restablecer</button></div></form>`;
 }
@@ -2814,6 +2823,7 @@ CUSTOM.temas = (parts) => {
         const prev = () => { const v = Object.fromEntries(IMP_CAMPOS.map(([k]) => [k, fc.elements[k].value])); const on = bg => contrast('#ffffff', bg) >= contrast('#111111', bg) ? '#fff' : '#111'; const pv = $('.ds-cprev', fc);
           pv.style.cssText = `--a:${v.acento};--ao:${on(v.acento)};--o:${v.oscuro};--b:${v.boton};--bo:${on(v.boton)};--t:${v.titulos}`; $$('.ds-c', fc).forEach(l => { $('code', l).textContent = $('input', l).value; }); };
         fc.addEventListener('input', prev); prev();
+        $$('[data-imppre]', fc).forEach(b => b.onclick = () => { const v = IMP_PRESETS[+b.dataset.imppre][1]; IMP_CAMPOS.forEach(([k]) => { fc.elements[k].value = v[k]; }); prev(); });
         $('[data-impreset]', fc).onclick = () => { IMP_CAMPOS.forEach(([k]) => { fc.elements[k].value = fc.elements[k].dataset.def; }); prev(); };
         fc.onsubmit = e => { e.preventDefault(); const key = fc.dataset.impcol; const out = {}; IMP_CAMPOS.forEach(([k]) => { const v = fc.elements[k].value.toLowerCase(); if (v !== fc.elements[k].dataset.def.toLowerCase()) out[k] = v; });
           DB.config.disenoColores = Object.assign({}, DB.config.disenoColores || {}, { [key]: out }); audit('Cambio de colores del diseño', 'Temas y apariencia', key); if (!saveDB()) return; applyTheme(); toast('Colores del diseño guardados.', 'ok'); route(); };
