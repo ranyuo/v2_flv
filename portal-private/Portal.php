@@ -255,7 +255,9 @@ final class PortalApp
     private function rate(string $action, int $limit, int $seconds): void
     {
         $window = intdiv(time(), $seconds) * $seconds;
-        $key = hash('sha256', $action.'|'.($_SERVER['REMOTE_ADDR'] ?? 'local').'|'.$window);
+        // Con sesión iniciada el límite es por usuario: en el instituto muchas personas comparten la misma IP pública.
+        $who = isset($_SESSION['user_id']) ? 'u'.(int)$_SESSION['user_id'] : ($_SERVER['REMOTE_ADDR'] ?? 'local');
+        $key = hash('sha256', $action.'|'.$who.'|'.$window);
         $statement = $this->db()->prepare('INSERT INTO pisco_rate_limits (rate_key,hits,expires_at) VALUES (?,1,?) ON DUPLICATE KEY UPDATE hits = hits + 1');
         $statement->execute([$key, $window + $seconds]);
         $statement = $this->db()->prepare('SELECT hits FROM pisco_rate_limits WHERE rate_key = ?');

@@ -14,6 +14,9 @@ final class PortalContent
 
     public static function normalize(array $data): array
     {
+        // Valores que el navegador espera en la configuración: se completan en el servidor para que ningún perfil
+        // envíe cambios de configuración por el solo hecho de abrir el panel.
+        if(isset($data['config']['mpv'])&&is_array($data['config']['mpv'])&&!isset($data['config']['mpv']['digitos']))$data['config']['mpv']['digitos']=6;
         if(($data['__v']??0)<14){
             $data['academico']['perms']['acad']['config']=2;
             $data['academico']['perms']['dir']['config']=1;
