@@ -3347,3 +3347,46 @@ form[data-bs] .btn{white-space:nowrap;flex:none}
 @media (max-width:900px){:root[data-layout="impacto"] body:not(.is-admin) .i-ncar .pcar-t{grid-auto-columns:calc((100% - 30px) / 2)}:root[data-layout="universitario"] body:not(.is-admin) .u-ngrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:600px){:root[data-layout="impacto"] body:not(.is-admin) .i-ncar .pcar-t{grid-auto-columns:85%}:root[data-layout="universitario"] body:not(.is-admin) .u-ngrid{grid-template-columns:1fr}}
 .pcar-news .ncard img{height:auto}
+
+/* ===== Cifras interactivas ===== */
+.cif{transition:transform .25s ease}
+.cif-n{display:inline-block;font-variant-numeric:tabular-nums;text-align:center}
+.cif-link{position:absolute;inset:0;z-index:2;border-radius:inherit}
+.cif-link:focus-visible{outline:3px solid var(--gold);outline-offset:4px}
+.cif-a{cursor:pointer}
+.cif-a:hover,.cif-a:focus-within{transform:translateY(-6px)}
+/* franja clásica: ícono que se rellena y gira, número que brilla y pulso al terminar */
+.stat .st-ic{position:relative;transition:background .25s,border-color .25s,transform .35s cubic-bezier(.34,1.56,.64,1)}
+.stat .st-ic svg{transition:stroke .25s}
+.stat.cif-a:hover .st-ic,.stat.cif-a:focus-within .st-ic{background:var(--gold);border-color:var(--gold);transform:rotate(-10deg) scale(1.12)}
+.stat.cif-a:hover .st-ic svg,.stat.cif-a:focus-within .st-ic svg{stroke:var(--navy)}
+.stat.cif-a:hover b,.stat.cif-a:focus-within b{text-shadow:0 0 18px color-mix(in srgb,var(--gold) 55%,transparent)}
+.stat b{transition:text-shadow .25s}
+.stat .st-ic::after{content:"";position:absolute;inset:-1px;border-radius:50%;border:2px solid var(--gold);opacity:0;pointer-events:none}
+.stat.cif-done .st-ic::after{animation:cif-pulse 1.1s ease-out 1}
+@keyframes cif-pulse{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(1.7)}}
+.stat.cif-a::after{content:"Ver más →";display:block;margin-top:6px;font-size:12.5px;font-weight:700;color:var(--gold);opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .25s}
+.stat.cif-a:hover::after,.stat.cif-a:focus-within::after{opacity:1;transform:none}
+/* reparto según cuántas cifras haya */
+.stats .grid.stats-n3{grid-template-columns:repeat(3,minmax(0,1fr));max-width:1000px;margin-left:auto;margin-right:auto}
+.stats .grid.stats-n2{grid-template-columns:repeat(2,minmax(0,1fr));max-width:720px;margin-left:auto;margin-right:auto}
+.stats .grid.stats-n1{grid-template-columns:1fr;max-width:420px;margin-left:auto;margin-right:auto}
+@media (max-width:640px){.stats .grid.stats-n3{grid-template-columns:1fr}.stats .grid.stats-n3 .stat+.stat::before{display:none}}
+/* universitario */
+:root[data-layout="universitario"] body:not(.is-admin) .u-nums .cif-a:hover,:root[data-layout="universitario"] body:not(.is-admin) .u-nums .cif-a:focus-within{box-shadow:0 18px 30px -18px rgba(0,0,0,.5)}
+:root[data-layout="universitario"] body:not(.is-admin) .u-nums .stat.cif-a::after{text-align:left;color:var(--link)}
+:root[data-layout="universitario"] body:not(.is-admin) .u-nums .stat{position:relative}
+/* impacto */
+:root[data-layout="impacto"] body:not(.is-admin) .i-cifl{display:inline-flex;gap:8px;margin-top:14px;color:var(--iy);font-weight:800;text-decoration:none;text-transform:uppercase;font-size:14px}
+:root[data-layout="impacto"] body:not(.is-admin) .i-cifl span{transition:transform .2s}:root[data-layout="impacto"] body:not(.is-admin) .i-cifl:hover span{transform:translateX(5px)}
+:root[data-layout="impacto"] body:not(.is-admin) .i-ach-i figure img{transition:transform .6s}
+:root[data-layout="impacto"] body:not(.is-admin) .i-ach-i:hover figure img{transform:scale(1.05)}
+/* horizonte */
+:root[data-layout="horizonte"] body:not(.is-admin) .h-nums>div{position:relative;border-radius:14px;transition:transform .25s,background .25s}
+:root[data-layout="horizonte"] body:not(.is-admin) .h-nums>.cif-a:hover,:root[data-layout="horizonte"] body:not(.is-admin) .h-nums>.cif-a:focus-within{background:#fff;box-shadow:0 12px 28px rgba(20,40,90,.1)}
+:root[data-layout="horizonte"] body:not(.is-admin) .h-nums>.cif-a::after{content:"Conoce más →";display:block;margin-top:8px;font-size:13px;font-weight:700;color:var(--hat);opacity:0;transition:opacity .25s}
+:root[data-layout="horizonte"] body:not(.is-admin) .h-nums>.cif-a:hover::after,:root[data-layout="horizonte"] body:not(.is-admin) .h-nums>.cif-a:focus-within::after{opacity:1}
+@media (prefers-reduced-motion:reduce){.cif,.cif-a:hover,.cif-a:focus-within{transform:none!important}.stat.cif-done .st-ic::after{animation:none}}
+/* el número animado conserva siempre el estilo de su cifra */
+.cif-n{display:inline-block!important;font:inherit!important;color:inherit!important;text-transform:none!important;letter-spacing:inherit!important;margin:0!important;padding:0!important;text-align:inherit!important}
+.u-nums .stat .cif-n,.u-big .cif-n{text-align:left!important}

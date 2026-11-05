@@ -108,6 +108,7 @@ final class PortalRules
                 if(!$link($access['enlace']))throw new PortalError(422,'El enlace de acceso rápido debe ser una ruta interna, ext:id o una URL http/https.');
             }
             foreach($home['cifras'] as $figure)if(!is_array($figure)||!is_scalar($figure['corte']??null)||trim((string)$figure['corte'])==='')throw new PortalError(422,'Cada cifra institucional debe indicar su año de corte.');
+            foreach($home['cifras'] as $figure)if(!empty($figure['enlace'])&&!$link($figure['enlace']))throw new PortalError(422,'El enlace de una cifra institucional debe ser una ruta interna, ext:id o una URL http/https.');
             if(!in_array($home['programasVista']??'carrusel',['grid','carrusel'],true))throw new PortalError(422,'La vista de los programas de estudio no es válida.');
             if(!in_array($home['noticiasVista']??'',['','tarjetas','carrusel'],true))throw new PortalError(422,'La vista de las noticias no es válida.');
             if(count($home['beneficios'])>8&&!PortalPolicy::equal($old['config']['home']['beneficios']??null,$home['beneficios']))throw new PortalError(422,'La portada admite como máximo ocho beneficios.');
