@@ -208,12 +208,29 @@ const IMP_PRESETS = [
   ['Amarillo y negro', { acento: '#f2b705', oscuro: '#000000', boton: '#1e5fc8', titulos: '#0d0d0d' }],
 ];
 function impDefaults(key, t) { return key === 'impacto-flv' ? { acento: t.gold, oscuro: t.navy, boton: t.blue, titulos: t.navy } : { acento: t.gold, oscuro: '#000000', boton: t.blue, titulos: '#0d0d0d' }; }
-function impColors(key, t) { const d = impDefaults(key, t), c = ((DB.config.disenoColores || {})[key]) || {}; const o = {}; for (const [k] of IMP_CAMPOS) o[k] = /^#[0-9a-f]{6}$/i.test(c[k] || '') ? c[k] : d[k]; return o; }
+/* «Horizonte»: color principal, acento y fondo claro */
+const HOR_CAMPOS = [['primario', 'Color principal', 'Bloque del logotipo, franjas, títulos y pie de página'], ['acento', 'Color de acento', 'Botón «Postula», flechas, palabras destacadas y enlaces'], ['fondo', 'Fondo claro', 'Fondo de las secciones claras']];
+const HOR_PRESETS = [
+  ['Azul y naranja', { primario: '#1e3f8a', acento: '#cc4a0a', fondo: '#eef4fd' }],
+  ['FLV institucional', { primario: '#0c2a5b', acento: '#f2b705', fondo: '#eef3fb' }],
+  ['Azul FLV y dorado', { primario: '#16449a', acento: '#f2b705', fondo: '#f1f6fe' }],
+  ['Marino y celeste', { primario: '#0c2a5b', acento: '#1a6fc0', fondo: '#eef5fd' }],
+  ['Azul y verde', { primario: '#163e7a', acento: '#0c7556', fondo: '#eef6f3' }],
+];
+/* diseños con colores configurables */
+const DCFG = {
+  'impacto': { campos: IMP_CAMPOS, presets: IMP_PRESETS, def: t => impDefaults('impacto', t) },
+  'impacto-flv': { campos: IMP_CAMPOS, presets: IMP_PRESETS, def: t => impDefaults('impacto-flv', t) },
+  'horizonte': { campos: HOR_CAMPOS, presets: HOR_PRESETS, def: () => ({ primario: '#1e3f8a', acento: '#cc4a0a', fondo: '#eef4fd' }) },
+};
+const dOn = bg => contrast('#ffffff', bg) >= contrast('#111111', bg) ? '#ffffff' : '#111111';
+function impColors(key, t) { const cf = DCFG[key]; const d = cf.def(t), c = ((DB.config.disenoColores || {})[key]) || {}; const o = {}; for (const [k] of cf.campos) o[k] = /^#[0-9a-f]{6}$/i.test(c[k] || '') ? c[k] : d[k]; return o; }
 function impApplyColors(t) {
   let st = document.getElementById('imp-vars'); const key = DB.config.diseno;
-  if (!IMP_KEYS.includes(key)) { if (st) st.textContent = ''; return; }
+  if (!DCFG[key]) { if (st) st.textContent = ''; return; }
   if (!st) { st = document.createElement('style'); st.id = 'imp-vars'; document.head.appendChild(st); }
-  const c = impColors(key, t); const on = bg => contrast('#ffffff', bg) >= contrast('#111111', bg) ? '#ffffff' : '#111111';
+  const c = impColors(key, t); const on = dOn;
+  if (key === 'horizonte') { st.textContent = `:root[data-layout="horizonte"] body:not(.is-admin){--hp:${c.primario};--hpo:${on(c.primario)};--hpd:${mix(c.primario, '#000000', .28)};--hpl:${mix(c.primario, '#ffffff', .55)};--ha:${c.acento};--hao:${on(c.acento)};--hat:${(() => { if (contrast(c.acento, '#ffffff') >= 4.5) return c.acento; if (contrast(c.acento, '#ffffff') >= 3.2) { let x = c.acento; for (let k = 0; k < 8 && contrast(x, '#ffffff') < 4.5; k++) x = mix(x, '#000000', .06); return x; } let x = mix(c.primario, '#2f7cf6', .55); for (let k = 0; k < 12 && contrast(x, '#ffffff') < 4.5; k++) x = mix(x, '#000000', .08); return x; })()};--hf:${c.fondo}}`; return; }
   st.textContent = `:root[data-layout="impacto"] body:not(.is-admin){--iy:${c.acento};--ion:${on(c.acento)};--id:${c.oscuro};--icta:${c.boton};--icton:${on(c.boton)};--ik:${c.titulos}}`;
 }
 const DISENOS = [
@@ -222,6 +239,7 @@ const DISENOS = [
   ['editorial', 'Editorial', 'Estilo de revista digital: tipografía grande, líneas finas, fondo claro y la noticia principal destacada en grande.'],
   ['impacto', 'Impacto', 'Alto contraste en amarillo y negro: logotipo en bloque de color, portada a pantalla completa, títulos condensados en mayúsculas, mosaico de programas, recuadros de color y franja negra de logros. El menú principal no cambia.'],
   ['impacto-flv', 'Impacto FLV', 'La estructura de Impacto con los colores del FLV: logotipo en bloque dorado, franjas y pie en azul marino del escudo y botón «Postula» en azul. Los colores se pueden ajustar.'],
+  ['horizonte', 'Horizonte', 'Portal de universidad moderna: cabecera con logotipo en bloque de color, tarjeta translúcida sobre la portada, panel de oferta formativa, franjas de color con esquinas redondeadas y títulos en dos colores. Los colores se pueden ajustar.'],
   ['universitario', 'Universitario', 'Portal de estilo universitario: cabecera oscura con logotipo en bloque blanco, programas con íconos circulares, franjas oscuras y carruseles en paneles. El menú principal no cambia.'],
 ];
 function applyTheme() {
@@ -663,6 +681,7 @@ function headerHTML(path) {
   }).join('');
   if (isUni()) return uniHeader(path, nav, cur);
   if (isImp()) return impHeader(path, nav, cur);
+  if (isHor()) return horHeader(path, nav, cur);
   return `<a class="skip" href="#contenido" onclick="event.preventDefault();document.getElementById('contenido').focus()">Saltar al contenido principal</a>
   <div class="topbar"><div class="wrap"><span>${esc(i.slogan)}</span><div class="tb-links">
     <a href="mailto:${esc(i.correo)}" class="hide-sm">${ic('mail')} ${esc(i.correo)}</a><a href="tel:${esc(i.telefono.replace(/\D/g, ''))}">${ic('phone')} ${esc(i.telefono)}</a>
@@ -680,6 +699,7 @@ function headerHTML(path) {
 function footerHTML() {
   if (isUni()) return uniFooter();
   if (isImp()) return impFooter();
+  if (isHor()) return horFooter();
   const i = inst(), r = DB.config.redes;
   const soc = ['facebook', 'youtube', 'instagram', 'tiktok'].filter(k => r[k]).map(k => `<a href="${esc(r[k])}" target="_blank" rel="noopener noreferrer" aria-label="${k} (se abre en una pestaña nueva)">${bic(k)}</a>`).join('');
   const ci = (icon, label, val) => `<li><span class="f-ic">${ic(icon)}</span><span><small>${label}</small>${val}</span></li>`;
@@ -824,6 +844,67 @@ function impBlocks(base, h, i) {
       return `<section class="i-sec"><div class="wrap"><h2 class="i-ttl i-cen">Plataformas del Estado</h2><div class="i-logos">${ls.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><b>${esc((l.id.length <= 10 ? l.id : l.nombre.split(/\s+/)[0]).toUpperCase())}</b><small>${esc(l.nombre)}</small><span class="sr-only"> (se abre en una pestaña nueva)</span></a>`).join('')}</div></div></section>`; },
   });
 }
+/* ===== Diseño «Horizonte»: franjas de color con esquinas redondeadas, acento y títulos en dos colores ===== */
+const isHor = () => !!(DB && DB.config && DB.config.diseno === 'horizonte') && !document.body.classList.contains('is-admin');
+const hTtl = (a, b, cls = '', tag = 'h2') => `<${tag} class="h-ttl ${cls}">${a}${b ? ` <em>${b}</em>` : ''}</${tag}>`;
+const hMore = (href, label = 'Conoce más') => `<a class="h-more" ${linkAttrs(href)}>${esc(label)} <span aria-hidden="true">→</span></a>`;
+function horHeader(path, nav, cur) {
+  const i = inst(); const adm = admVigente(); const y = new Date().getFullYear();
+  const top = [['#/servicios', 'Servicios en línea'], [ext('aula'), 'Plataforma Virtual'], [ext('correo'), 'Correo institucional'], [ext('biblioteca'), 'Biblioteca virtual'], ['#/admin', 'Intranet']].filter(x => x[0]);
+  return `<a class="skip" href="#contenido" onclick="event.preventDefault();document.getElementById('contenido').focus()">Saltar al contenido principal</a>
+  <header class="site-header h-head"><a class="h-brand" href="#/" aria-label="${esc(i.nombreCorto)} - ir a inicio"><img src="${logoSrc()}" alt="Logotipo del ${esc(i.nombre)}"><span><small>Instituto de Educación Superior</small><strong>${esc(i.logoSigla || i.nombreCorto)}</strong><em>${esc(i.slogan)}</em></span></a>
+    <div class="h-rows"><div class="h-top">${top.map(([h, l]) => `<a ${linkAttrs(h)}>${esc(l)}${/^https?:/.test(h) ? '<span class="sr-only"> (enlace externo)</span>' : ''}</a>`).join('')}<button type="button" class="u-sb h-sb" aria-expanded="false" aria-controls="u-srch" aria-label="Abrir el buscador">${ic('search')}</button></div>
+      <div class="h-main"><nav class="mainnav" id="mainnav" aria-label="Navegación principal"><div class="wrap"><ul><li><a class="top home ${cur === '' ? 'active' : ''}" href="#/" aria-label="Inicio">${ic('home')}<span class="hide-lg">Inicio</span></a></li>${nav}</ul>
+        <form class="mobile-search" role="search" data-search><label class="sr-only" for="q2">Buscar</label><input class="inp" id="q2" name="q" placeholder="Buscar en el sitio..."><button class="btn gold sm">Buscar</button></form></div></nav>
+        <a class="h-cta" href="#/admision"><span>Postula</span><small>Admisión ${esc(adm ? adm.anio : y)}</small></a>
+        <button class="menu-btn" aria-expanded="false" aria-controls="mainnav" data-menu>☰ <span class="sr-only">Abrir menú</span></button></div></div>
+    <form class="u-srch" id="u-srch" role="search" data-search hidden><div class="wrap"><label class="sr-only" for="q1">Buscar en el sitio</label><input id="q1" name="q" placeholder="¿Qué estás buscando?"><button class="btn">${ic('search')} Buscar</button></div></form></header>`;
+}
+function horFooter() {
+  const i = inst(); const r = DB.config.redes || {}; const tel = String(i.telefono || '').replace(/\D/g, '');
+  const soc = ['facebook', 'youtube', 'instagram', 'tiktok'].filter(k => r[k]).map(k => `<a href="${esc(r[k])}" target="_blank" rel="noopener noreferrer" aria-label="${k} (se abre en una pestaña nueva)">${bic(k)}</a>`).join('');
+  const grp = (t, ls) => `<div class="h-fg"><h3>${esc(t)}</h3><ul>${ls.map(([h, l]) => `<li><a ${linkAttrs(h)}>${esc(l)}</a></li>`).join('')}</ul></div>`;
+  return `${soc ? `<section class="h-social"><div class="wrap">${hTtl('Síguenos y entérate', 'de lo nuevo')}<div class="h-soc">${soc}</div></div></section>` : ''}
+  <footer class="site-footer h-foot"><div class="wrap h-f">
+    <div>${grp('Admisión', [['#/admision', 'Proceso de admisión'], ['#/matricula', 'Matrícula'], ['#/becas', 'Becas']])}${grp('Servicios', [['#/servicios/mesa-de-partes', 'Mesa de partes'], ['#/servicios/consulta-certificados', 'Consulta de certificados'], ['#/servicios/bolsa-laboral', 'Bolsa laboral'], ['#/transparencia/documentos-gestion', 'Portal de transparencia'], ['#/mapa-del-sitio', 'Mapa del sitio']])}
+      <a href="#/servicios/libro-de-reclamaciones" class="h-lr">${ic('book')}<span>Libro de<br>Reclamaciones</span></a></div>
+    <div>${grp('Programas de estudio', progs().map(p => ['#/programas/' + p.slug, p.nombre]))}${grp('Institucional', [['#/nosotros/presentacion', 'Nosotros'], ['#/noticias', 'Noticias'], ['#/eventos', 'Eventos'], ['#/contacto', 'Contáctanos'], ['#/admin', 'Intranet']])}</div>
+    <div class="h-fc"><h3>Sede institucional</h3><p>${ic('map')}<span>${esc(i.direccion)}</span></p><p>${ic('phone')}<a href="tel:${esc(tel)}">${esc(i.telefono)}</a></p><p>${ic('mail')}<a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a></p><p>${ic('clock')}<span>${esc(i.horario)}</span></p>
+      <h3>Enlaces institucionales</h3><p class="h-fl"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a><a ${linkAttrs(ext('dre') || 'https://www.dreica.gob.pe/')}>DRE Ica</a></p></div>
+  </div><div class="wrap h-fb"><a class="h-fbrand" href="#/"><small>Instituto de Educación Superior</small><strong>${esc(i.logoSigla || i.nombreCorto)}</strong></a><nav aria-label="Enlaces legales"><a href="#/politica-de-privacidad">Política de privacidad</a><a href="#/terminos-de-uso">Términos de uso</a><a href="#/transparencia/documentos-gestion">Transparencia</a></nav><div class="h-soc h-soc-s">${soc}</div></div>
+  <div class="h-copy">© ${yearNow()} ${esc(i.nombre)}${i.ruc ? ' · RUC ' + esc(i.ruc) : ''}</div></footer>
+  ${DB.config.whatsapp.activo && DB.config.whatsapp.numero ? `<a class="wa" href="https://wa.me/${esc(DB.config.whatsapp.numero)}?text=${encodeURIComponent(DB.config.whatsapp.mensaje)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${bic('whatsapp')}</a>` : ''}`;
+}
+/* bloques de portada del diseño «Horizonte»: mismos bloques y mismo orden/visibilidad que configura Portada */
+function horBlocks(base, h, i) {
+  const ps = progs(); const sl = sortO(P('slides').filter(isPub));
+  const pics = [...sl.map(s => s.imagen), ...ps.map(p => p.imagen)].filter(Boolean);
+  const loc = P('locales').filter(isPub).find(l => l.foto);
+  const dirJ = P('jerarquica').find(j => j.esDirector) || {}; const dir = persona(dirJ.personaId);
+  const tabs = (id, items, label) => `<div class="h-tabs" data-htabs role="tablist" aria-label="${esc(label)}">${items.map((x, k) => `<button type="button" role="tab" id="${id}-t${k}" aria-controls="${id}-p${k}" aria-selected="${k ? 'false' : 'true'}" data-htab="${k}">${esc(x)}</button>`).join('')}</div>`;
+  return Object.assign({}, base, {
+    programas: () => ps.length ? `<section class="h-oferta"><div class="wrap"><div class="h-panel">${hTtl('Conoce nuestra', 'oferta formativa', 'h-c')}<div class="h-ofg">${ps.map(p => `<article class="h-of"><h3><a href="#/programas/${esc(p.slug)}">${esc(p.nombre)}</a></h3><small>${esc(p.duracion || 'Programa de estudios · 3 años')}</small><i class="h-line" aria-hidden="true"></i><img src="${img(p.imagen)}" alt="" loading="lazy"><p>${esc(clamp(p.resumen || '', 120))}</p>${hMore('#/programas/' + p.slug)}</article>`).join('')}</div></div></div></section>` : '',
+    cifras: () => { const cs = h.cifras.filter(x => String(cifra(x.valor)).trim()); if (!cs.length) return '';
+      return `<section class="h-cal"><div class="wrap"><div class="h-band">${hTtl('Calidad', 'institucional')}<p>${esc(i.descripcion)}</p></div><div class="h-nums">${cs.map(x => `<div><b>${esc(cifra(x.valor))}</b><span>${esc(x.label)}</span><small>Corte ${esc(x.corte)}</small></div>`).join('')}</div></div></section>`; },
+    beneficios: () => { const bs = h.beneficios.slice(0, 6); if (!bs.length) return '';
+      return `<section class="h-ben"><div class="wrap">${hTtl('Beneficios de estudiar en el', esc(i.nombreCorto), 'h-c')}<div class="h-bpan" data-htabgroup><img src="${img(pics[1] || pics[0])}" alt="" loading="lazy">${tabs('hb', bs.map(b => b.t), 'Beneficios')}<div class="h-bbody">${bs.map((b, k) => `<div role="tabpanel" id="hb-p${k}" aria-labelledby="hb-t${k}" data-hpane="${k}"${k ? ' hidden' : ''}><h3>${esc(b.t)}</h3><p>${esc(b.d)}</p>${hMore('#/nosotros/presentacion')}</div>`).join('')}</div></div></div></section>`; },
+    testimonios: () => { const es = P('egresados').filter(isPub).slice(0, 3); if (!es.length) return '';
+      return `<section class="h-testi"><div class="wrap"><div class="h-th">${hTtl('Lo que dicen', 'nuestros egresados')}<p>Nuestros egresados llevaron su <b>formación técnica</b> a la <b>vida profesional</b>. Estos son sus testimonios.</p></div><div class="h-tc">${es.map(e => `<figure class="h-pc"><img src="${img(e.foto)}" alt="" loading="lazy"><figcaption><q>${esc(clamp(e.testimonio || '', 120))}</q><b>${esc(e.nombres)}</b><small>${esc((progById(e.programaId) || {}).nombre || '')} · Promoción ${esc(e.anio)}</small></figcaption></figure>`).join('')}</div></div></section>`; },
+    jerarquica: () => { const js = sortO(P('jerarquica').filter(isPub)).map(j => ({ j, p: persona(j.personaId) })).filter(x => x.p).slice(0, 4); if (!js.length) return '';
+      return `<section class="h-team"><div class="wrap"><div class="h-th h-th-l">${hTtl('Conoce a nuestro', 'equipo directivo')}${hMore('#/nosotros/plana-jerarquica', 'Ver plana jerárquica')}</div><div class="h-tc h-tc4">${js.map(({ j, p }) => `<a class="h-pc" href="#/nosotros/plana-jerarquica"><img src="${img(p.foto)}" alt="" loading="lazy"><span class="h-pcx"><b>${esc(fullName(p))}</b><small>${esc(j.cargo)}</small></span></a>`).join('')}</div></div></section>`; },
+    bienvenida: () => { const pr = page('presentacion'); if (!pr || !isPub(pr)) return ''; const tx = (pr.contenido.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
+      return `<section class="h-msg"><div class="wrap h-2"><article class="h-mcard"><img src="${img(loc && loc.foto || pics[0])}" alt="" loading="lazy"><div class="h-mp"><img src="${img(dir && dir.foto)}" alt=""><div><b>${esc(fullName(dir))}</b><small>${esc(dirJ.cargo || 'Dirección General')}</small></div></div><p>${esc(clamp(tx, 260))}</p></article>
+        <div>${hTtl('Mensaje de la', 'Dirección General')}<h3>${esc(i.lema || i.slogan || '')}</h3><p>${esc(i.descripcion)}</p><a class="h-pill" href="#/nosotros/presentacion">Conoce más <span aria-hidden="true">›</span></a></div></div></section>`; },
+    accesos: () => { const qs = h.accesos.map(a => ({ a, u: resolveLink(a.enlace) })).filter(x => x.u); if (!qs.length) return '';
+      return `<section class="h-camp"><div class="wrap">${hTtl('Servicios', 'en línea', 'h-c h-w')}<p class="h-sub">Realiza tus trámites y consultas desde cualquier lugar, sin acudir al instituto.</p><div data-htabgroup>${tabs('ha', qs.map(x => x.a.titulo), 'Servicios en línea')}
+        <div class="h-ccard"><button type="button" class="h-arr" data-hstep="-1" aria-label="Servicio anterior">‹</button>${qs.map(({ a, u }, k) => `<div class="h-cin" role="tabpanel" id="ha-p${k}" aria-labelledby="ha-t${k}" data-hpane="${k}"${k ? ' hidden' : ''}><span class="h-cic">${ic(a.icono)}</span><div>${hTtl('', esc(a.titulo), '', 'h3')}<p>${esc(a.texto)}</p><p class="h-cl">${ic('map')} ${esc(i.direccion)}</p><p class="h-cl">${ic('mail')} ${esc(i.correo)}</p><a class="h-more" ${linkAttrs(u)}>Ingresar al servicio <span aria-hidden="true">→</span></a></div></div>`).join('')}<button type="button" class="h-arr" data-hstep="1" aria-label="Servicio siguiente">›</button></div></div></div></section>`; },
+    enlaces: () => { const all = coll('enlaces').filter(l => !l.deleted && ext(l.id)); let ls = all.filter(l => l.grupo === 'minedu'); if (!ls.length) ls = all.filter(l => l.grupo === 'Institucional' && l.id !== 'web'); if (!ls.length) return '';
+      return `<section class="h-rank"><div class="wrap"><div class="h-rg">${ls.slice(0, 6).map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><b>${esc((l.id.length <= 10 ? l.id : l.nombre.split(/\s+/)[0]).toUpperCase())}</b><small>${esc(l.nombre)}</small><span class="sr-only"> (se abre en una pestaña nueva)</span></a>`).join('')}</div></div></section>`; },
+    noticias: () => { const ns = pubNews().slice(0, 3); return `<section class="h-news"><div class="h-nband"><div class="wrap h-th h-th-l">${hTtl('Noticias', 'del instituto', 'h-w')}${hMore('#/noticias', 'Ver todas las noticias')}</div></div><div class="wrap">${ns.length ? `<div class="h-ncards">${ns.map(n => `<article class="h-nc"><img src="${img(n.imagen, 'ph:campus:4')}" data-fit="${newsImageFit(n)}" alt="" loading="lazy"><div><time datetime="${esc(n.fecha)}">${fdate(n.fecha)}</time><h3><a href="#/noticias/${esc(n.slug)}">${esc(n.titulo)}</a></h3>${hMore('#/noticias/' + n.slug, 'Leer más')}</div></article>`).join('')}</div>` : emptyMsg('noticias')}</div></section>`; },
+    eventos: () => { const ev = P('eventos').filter(e => isPub(e) && new Date(e.fecha) >= new Date(new Date().toDateString())).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 3); if (!ev.length) return '';
+      return `<section class="h-ev"><div class="wrap"><div class="h-th h-th-l">${hTtl('Próximos', 'eventos')}${hMore('#/eventos', 'Ver agenda')}</div><div class="grid g3">${ev.map(eventCard).join('')}</div></div></section>`; },
+  });
+}
 function bannerHTML(b, slim = false) {
   /* En los servicios en línea (formularios) el banner es bajo para que el formulario quede a la vista. */
   return `<section class="page-banner${slim ? ' slim' : ''}" aria-label="Banner de la sección"><img class="bg" src="${img(b.img || (DB.locales || []).find(l => isPub(l))?.foto || inst().logo)}" alt=""><div class="wrap">${b.kicker ? `<div class="kicker">${esc(b.kicker)}</div>` : ''}<p class="ttl" aria-hidden="true">${esc(b.title)}</p>${b.text ? `<p>${esc(b.text)}</p>` : ''}</div></section>`;
@@ -889,8 +970,10 @@ R('', path => {
     eventos: () => { const ev = P('eventos').filter(e => isPub(e) && new Date(e.fecha) >= new Date(new Date().toDateString())).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 3); return ev.length ? `<section class="sec"><div class="wrap"><div class="sec-h"><span class="kicker">Agenda</span><h2>Próximos eventos</h2></div><div class="grid g3">${ev.map(eventCard).join('')}</div><p style="text-align:center;margin-top:18px"><a class="btn sec" href="#/eventos">Ver agenda completa</a></p></div></section>` : ''; },
     enlaces: () => `<section class="sec alt"><div class="wrap"><div class="sec-h"><span class="kicker">Plataformas del Estado</span><h2>Enlaces institucionales</h2></div>${mineduLinks()}</div></section>`,
   };
-  const B = isUni() ? uniBlocks(blocks, h, i) : isImp() ? impBlocks(blocks, h, i) : blocks;
-  const body = h.bloques.filter(b => b.on && B[b.k]).map(b => B[b.k]()).join('');
+  const B = isUni() ? uniBlocks(blocks, h, i) : isImp() ? impBlocks(blocks, h, i) : isHor() ? horBlocks(blocks, h, i) : blocks;
+  // «Horizonte»: el panel de oferta formativa va sobre la portada, como en el diseño de referencia; el resto conserva el orden configurado.
+  let order = h.bloques; if (isHor()) { const pr = order.find(b => b.k === 'programas' && b.on); if (pr && order.some(b => b.k === 'slider' && b.on)) { order = order.filter(b => b !== pr); order.splice(order.findIndex(b => b.k === 'slider') + 1, 0, pr); } }
+  const body = order.filter(b => b.on && B[b.k]).map(b => B[b.k]()).join('');
   const admission = admVigente();
   const announcement = admission ? `<p class="home-announcement">Admisión ${esc(admission.anio)} · ${esc(admission.subtitulo || 'Consulta nuestros programas de estudio')}</p>` : '';
   return `${announcement}${headerHTML(path)}<main id="contenido" tabindex="-1"><h1 class="sr-only">${esc(inst().nombre)} – Portal institucional</h1>${body}</main>${footerHTML()}`;
@@ -1556,6 +1639,10 @@ function bindPublicChrome() {
     box.addEventListener('focusout', e => { if (e.relatedTarget && !box.contains(e.relatedTarget)) close(false); }); }
   $$('[data-iach]').forEach(sec => { if (!sec.matches('section')) return; const its = $$('.i-ach-i', sec); let k = 0;
     $$('button[data-iach]', sec).forEach(b => b.onclick = () => { its[k].hidden = true; its[k].classList.remove('on'); k = (k + (+b.dataset.iach) + its.length) % its.length; its[k].hidden = false; its[k].classList.add('on'); }); });
+  $$('[data-htabgroup]').forEach(g => { const bs = $$('[data-htab]', g), ps = $$('[data-hpane]', g); let k = 0;
+    const show = n => { k = (n + bs.length) % bs.length; bs.forEach((b, x) => { b.setAttribute('aria-selected', x === k ? 'true' : 'false'); b.tabIndex = x === k ? 0 : -1; }); ps.forEach((p, x) => { p.hidden = x !== k; }); };
+    bs.forEach((b, x) => { b.onclick = () => show(x); b.onkeydown = e => { if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); show(k + 1); bs[k].focus(); } if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); show(k - 1); bs[k].focus(); } }; });
+    $$('[data-hstep]', g).forEach(b => b.onclick = () => show(k + (+b.dataset.hstep))); show(0); });
   const us = $('.u-sb'); if (us) { const f = $('#u-srch'); us.onclick = () => { f.hidden = !f.hidden; us.setAttribute('aria-expanded', !f.hidden); if (!f.hidden) $('input', f).focus(); };
     f.addEventListener('keydown', e => { if (e.key === 'Escape') { f.hidden = true; us.setAttribute('aria-expanded', 'false'); us.focus(); } }); }
   $$('.u-car').forEach(c => { const t = $('.pcar-t', c); let d = c.nextElementSibling; if (!d || !d.classList.contains('u-dots')) { d = document.createElement('div'); d.className = 'u-dots'; c.after(d); }
@@ -2798,14 +2885,14 @@ function disenoPanel() {
   const cur = DISENOS.some(d => d[0] === DB.config.diseno) ? DB.config.diseno : 'clasico';
   const mock = k => `<div class="ds-mock ds-${k}" aria-hidden="true"><i class="m-top"></i><i class="m-hero"><b></b><b></b></i><i class="m-cards"><b></b><b></b><b></b></i></div>`;
   return `<section class="panel ds-panel"><div class="pb"><h2 style="margin:0 0 4px">Diseño del portal</h2><p style="margin:0 0 14px;color:var(--muted)">Cambia la estructura visual de todo el sitio público. Los colores siguen el tema activo y el contenido no cambia.</p>
-    <div class="ds-grid">${DISENOS.map(([k, l, d]) => `<article class="ds-item${k === cur ? ' on' : ''}">${mock(k)}<div class="tm-body"><h3>${esc(l)} ${k === cur ? '<span class="badge ok">Activo</span>' : ''}</h3><p>${esc(d)}</p><div class="tm-acts">${k === cur ? '' : `<button class="btn sm" data-dis="${k}">${sic('check', 14)} Activar diseño</button>`}</div></div></article>`).join('')}</div>${IMP_KEYS.includes(cur) ? impColorPanel(cur) : ''}</div></section>`;
+    <div class="ds-grid">${DISENOS.map(([k, l, d]) => `<article class="ds-item${k === cur ? ' on' : ''}">${mock(k)}<div class="tm-body"><h3>${esc(l)} ${k === cur ? '<span class="badge ok">Activo</span>' : ''}</h3><p>${esc(d)}</p><div class="tm-acts">${k === cur ? '' : `<button class="btn sm" data-dis="${k}">${sic('check', 14)} Activar diseño</button>`}</div></div></article>`).join('')}</div>${DCFG[cur] ? impColorPanel(cur) : ''}</div></section>`;
 }
 function impColorPanel(key) {
-  const t = DB.config.temas[DB.config.tema]; const c = impColors(key, t), d = impDefaults(key, t); const label = (DISENOS.find(x => x[0] === key) || [])[1];
+  const t = DB.config.temas[DB.config.tema]; const cf = DCFG[key]; const c = impColors(key, t), d = cf.def(t); const label = (DISENOS.find(x => x[0] === key) || [])[1];
   return `<form class="ds-colors" data-impcol="${key}"><h3>Colores del diseño «${esc(label)}»</h3><p>Elige los colores y revisa la vista previa. «Restablecer» vuelve a los colores del tema activo.</p>
-    <div class="ds-cgrid">${IMP_CAMPOS.map(([k, l, h]) => `<label class="ds-c"><span><b>${esc(l)}</b><small>${esc(h)}</small></span><input type="color" name="${k}" value="${esc(c[k])}" data-def="${esc(d[k])}"><code>${esc(c[k])}</code></label>`).join('')}</div>
-    <div class="ds-pre"><span>Combinaciones sugeridas:</span>${IMP_PRESETS.map(([n, v], k) => `<button type="button" class="ds-pb" data-imppre="${k}" title="${esc(n)}"><i style="background:${v.acento}"></i><i style="background:${v.oscuro}"></i><i style="background:${v.boton}"></i>${esc(n)}</button>`).join('')}</div>
-    <div class="ds-cprev" aria-hidden="true"><i class="p-logo">Logo</i><i class="p-cta">Postula</i><i class="p-ttl">Títulos</i><i class="p-box">+ Recuadro</i><i class="p-dark">Franja y pie</i></div>
+    <div class="ds-cgrid">${cf.campos.map(([k, l, h]) => `<label class="ds-c"><span><b>${esc(l)}</b><small>${esc(h)}</small></span><input type="color" name="${k}" value="${esc(c[k])}" data-def="${esc(d[k])}"><code>${esc(c[k])}</code></label>`).join('')}</div>
+    <div class="ds-pre"><span>Combinaciones sugeridas:</span>${cf.presets.map(([n, v], k) => `<button type="button" class="ds-pb" data-imppre="${k}" title="${esc(n)}">${Object.values(v).slice(0, 3).map(x => `<i style="background:${x}"></i>`).join('')}${esc(n)}</button>`).join('')}</div>
+    <div class="ds-cprev ds-cprev-g" aria-hidden="true">${cf.campos.map(([k, l]) => `<i data-pk="${k}">${esc(l)}</i>`).join('')}</div>
     <div class="tm-acts"><button class="btn sm" type="submit">${sic('check', 14)} Guardar colores</button><button class="btn sm sec" type="button" data-impreset>Restablecer</button></div></form>`;
 }
 CUSTOM.temas = (parts) => {
@@ -2820,12 +2907,12 @@ CUSTOM.temas = (parts) => {
   return {
     html, after: () => {
       const fc = $('[data-impcol]'); if (fc) {
-        const prev = () => { const v = Object.fromEntries(IMP_CAMPOS.map(([k]) => [k, fc.elements[k].value])); const on = bg => contrast('#ffffff', bg) >= contrast('#111111', bg) ? '#fff' : '#111'; const pv = $('.ds-cprev', fc);
-          pv.style.cssText = `--a:${v.acento};--ao:${on(v.acento)};--o:${v.oscuro};--b:${v.boton};--bo:${on(v.boton)};--t:${v.titulos}`; $$('.ds-c', fc).forEach(l => { $('code', l).textContent = $('input', l).value; }); };
+        const CF = DCFG[fc.dataset.impcol];
+        const prev = () => { CF.campos.forEach(([k]) => { const v = fc.elements[k].value; const chip = $(`[data-pk="${k}"]`, fc); if (chip) { chip.style.background = v; chip.style.color = dOn(v); } }); $$('.ds-c', fc).forEach(l => { $('code', l).textContent = $('input', l).value; }); };
         fc.addEventListener('input', prev); prev();
-        $$('[data-imppre]', fc).forEach(b => b.onclick = () => { const v = IMP_PRESETS[+b.dataset.imppre][1]; IMP_CAMPOS.forEach(([k]) => { fc.elements[k].value = v[k]; }); prev(); });
-        $('[data-impreset]', fc).onclick = () => { IMP_CAMPOS.forEach(([k]) => { fc.elements[k].value = fc.elements[k].dataset.def; }); prev(); };
-        fc.onsubmit = e => { e.preventDefault(); const key = fc.dataset.impcol; const out = {}; IMP_CAMPOS.forEach(([k]) => { const v = fc.elements[k].value.toLowerCase(); if (v !== fc.elements[k].dataset.def.toLowerCase()) out[k] = v; });
+        $$('[data-imppre]', fc).forEach(b => b.onclick = () => { const v = CF.presets[+b.dataset.imppre][1]; CF.campos.forEach(([k]) => { fc.elements[k].value = v[k]; }); prev(); });
+        $('[data-impreset]', fc).onclick = () => { CF.campos.forEach(([k]) => { fc.elements[k].value = fc.elements[k].dataset.def; }); prev(); };
+        fc.onsubmit = e => { e.preventDefault(); const key = fc.dataset.impcol; const out = {}; CF.campos.forEach(([k]) => { const v = fc.elements[k].value.toLowerCase(); if (v !== fc.elements[k].dataset.def.toLowerCase()) out[k] = v; });
           DB.config.disenoColores = Object.assign({}, DB.config.disenoColores || {}, { [key]: out }); audit('Cambio de colores del diseño', 'Temas y apariencia', key); if (!saveDB()) return; applyTheme(); toast('Colores del diseño guardados.', 'ok'); route(); };
       }
       $$('[data-dis]').forEach(b => b.onclick = () => { const d = DISENOS.find(x => x[0] === b.dataset.dis); DB.config.diseno = d[0]; audit('Cambio de diseño del portal', 'Temas y apariencia', d[1]); if (!saveDB()) return; applyTheme(); toast('Diseño «' + d[1] + '» activado en todo el portal.', 'ok'); route(); });

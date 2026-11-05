@@ -111,12 +111,13 @@ final class PortalRules
             if(!in_array($home['programasVista']??'carrusel',['grid','carrusel'],true))throw new PortalError(422,'La vista de los programas de estudio no es válida.');
             if(count($home['beneficios'])>8&&!PortalPolicy::equal($old['config']['home']['beneficios']??null,$home['beneficios']))throw new PortalError(422,'La portada admite como máximo ocho beneficios.');
         }
-        if($changed('diseno')&&!in_array($new['config']['diseno']??null,['clasico','moderno','editorial','universitario','impacto','impacto-flv'],true))throw new PortalError(422,'El diseño del portal no es válido.');
+        if($changed('diseno')&&!in_array($new['config']['diseno']??null,['clasico','moderno','editorial','universitario','impacto','impacto-flv','horizonte'],true))throw new PortalError(422,'El diseño del portal no es válido.');
         if($changed('disenoColores')){
             $colors=$new['config']['disenoColores']??null;if(!is_array($colors))throw new PortalError(422,'Los colores del diseño no son válidos.');
             foreach($colors as $design=>$values){
-                if(!in_array($design,['impacto','impacto-flv'],true)||!is_array($values))throw new PortalError(422,'Los colores del diseño no son válidos.');
-                foreach($values as $field=>$color)if(!in_array($field,['acento','oscuro','boton','titulos'],true)||!is_string($color)||!preg_match('/^#[0-9a-f]{6}$/i',$color))throw new PortalError(422,'Cada color del diseño debe tener el formato #RRGGBB.');
+                $fields=['impacto'=>['acento','oscuro','boton','titulos'],'impacto-flv'=>['acento','oscuro','boton','titulos'],'horizonte'=>['primario','acento','fondo']][$design]??null;
+                if($fields===null||!is_array($values))throw new PortalError(422,'Los colores del diseño no son válidos.');
+                foreach($values as $field=>$color)if(!in_array($field,$fields,true)||!is_string($color)||!preg_match('/^#[0-9a-f]{6}$/i',$color))throw new PortalError(422,'Cada color del diseño debe tener el formato #RRGGBB.');
             }
         }
         if($changed('popup')){
