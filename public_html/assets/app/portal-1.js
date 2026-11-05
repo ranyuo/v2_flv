@@ -1211,7 +1211,7 @@ function docRec(id){
 }
 function pdfRec(id){
   if(!libsOk("pdf")) return; const x = byId(DB.reclamos,id), d = emitDoc("reclamo", x.id, x.nom); if(!d)return;
-  const doc = pdfNew(); let y = pdfHeader(doc, `HOJA DE RECLAMACIÓN N.º ${x.num}`, `${x.tipo} registrado el ${fd(x.fecha)}`);
+  const doc = pdfNew(); let y = pdfHeader(doc, `HOJA DE RECLAMACIÓN N.º ${x.num}`, `${x.tipo} ${x.tipo === "Queja" ? "registrada" : "registrado"} el ${fd(x.fecha)}`);
   y = pdfKV(doc, y + 2, [["Usuario",x.nom],["DNI",x.dni],["Domicilio",x.dom||"—"],["Contacto",`${x.tel} · ${x.correo}`],["Área relacionada",areaN(x.area)],["Fecha del hecho",fd(x.hecho)],["Descripción",x.desc],["Pedido",x.pedido],["Estado",x.estado],...(x.respuesta ? [["Respuesta",`${x.respuesta} (${fd(x.fresp)})`]] : [["Plazo de respuesta",fd(plazoRec(x).due)]])]);
   pdfVerify(doc, d, y + 6); pdfFooter(doc); saveFile(`hoja_reclamacion_${x.num}.pdf`, doc.output("blob"));
 }
