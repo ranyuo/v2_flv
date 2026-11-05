@@ -3332,3 +3332,18 @@ form[data-bs] .btn{white-space:nowrap;flex:none}
   .pp-cards:last-child{margin-bottom:18px}
 }
 @media (prefers-reduced-motion:reduce){.pp-wrap,.pp{animation:none}}
+
+/* Noticias en carrusel (todos los diseños): tres por vista en computadora */
+.pcar-news .pcar-t{grid-auto-columns:calc((100% - 2 * 18px) / 3)}
+.pcar-news .pcar-b{top:clamp(70px,8vw,100px)}
+@media (max-width:900px){.pcar-news .pcar-t{grid-auto-columns:calc((100% - 18px) / 2)}}
+@media (max-width:600px){.pcar-news .pcar-t{grid-auto-columns:85%}}
+.pcar-news .pcar-i>*{height:100%}
+:root[data-layout="impacto"] body:not(.is-admin) .i-ncar .pcar-t{column-gap:30px;grid-auto-columns:calc((100% - 2 * 30px) / 3)}
+:root[data-layout="horizonte"] body:not(.is-admin) .h-ncar{margin-top:-90px}
+:root[data-layout="horizonte"] body:not(.is-admin) .h-ncar .pcar-t{padding:4px 4px 24px}
+:root[data-layout="horizonte"] body:not(.is-admin) .h-ncar .pcar-b{background:#fff;color:var(--hp)}
+:root[data-layout="universitario"] body:not(.is-admin) .u-ngrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+@media (max-width:900px){:root[data-layout="impacto"] body:not(.is-admin) .i-ncar .pcar-t{grid-auto-columns:calc((100% - 30px) / 2)}:root[data-layout="universitario"] body:not(.is-admin) .u-ngrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){:root[data-layout="impacto"] body:not(.is-admin) .i-ncar .pcar-t{grid-auto-columns:85%}:root[data-layout="universitario"] body:not(.is-admin) .u-ngrid{grid-template-columns:1fr}}
+.pcar-news .ncard img{height:auto}
