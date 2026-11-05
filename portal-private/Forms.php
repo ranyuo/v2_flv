@@ -5,7 +5,7 @@ trait PortalForms
     public function challenge(array $input): array
     {
         $purpose=$input['purpose']??'';
-        if(!in_array($purpose,['mensajes','expedientes','reclamos','certificados','suscriptores'],true))throw new PortalError(422,'Formulario no válido.');
+        if(!in_array($purpose,['mensajes','expedientes','reclamos','certificados'],true))throw new PortalError(422,'Formulario no válido.');
         $this->rate('challenge',120,60);
         $_SESSION['challenges']=array_filter($_SESSION['challenges']??[],fn($c)=>$c['expires']>=time());
         if(count($_SESSION['challenges'])>=80)array_shift($_SESSION['challenges']);
@@ -20,7 +20,7 @@ trait PortalForms
         if(!hash_equals($c['answer'],trim((string)($proof['answer']??''))))throw new PortalError(422,'La suma no es correcta. Corrige el resultado e inténtalo nuevamente.');
         if(!empty($proof['website']))throw new PortalError(422,'Envío bloqueado por el filtro anti-spam.');
         if(($c['used_key']??null)!==null&&$c['used_key']!==($input['idempotency_key']??''))throw new PortalError(422,'La verificación ya fue utilizada. Recarga el formulario.');
-        if(in_array($purpose,['mensajes','expedientes','reclamos','suscriptores'],true)&&($proof['accept']??false)!==true)throw new PortalError(422,'Debes aceptar el tratamiento de datos y la política de privacidad.');
+        if(in_array($purpose,['mensajes','expedientes','reclamos'],true)&&($proof['accept']??false)!==true)throw new PortalError(422,'Debes aceptar el tratamiento de datos y la política de privacidad.');
         if(in_array($purpose,['expedientes','reclamos'],true)&&($proof['declare']??false)!==true)throw new PortalError(422,'Debes aceptar la declaración de veracidad.');
     }
     private function formDomain(string $type,array $record,array $data): array

@@ -41,7 +41,6 @@ final class PortalApp
         'mensajes' => ['nombres' => 'required|string|max:160', 'documento' => 'nullable|string|max:20',
             'correo' => 'required|email|max:254', 'telefono' => 'nullable|string|max:30',
             'asunto' => 'required|string|max:200', 'programa' => 'nullable|string|max:100', 'mensaje' => 'required|string|min:10|max:10000'],
-        'suscriptores' => ['correo' => 'required|email|max:254'],
         'reclamos' => ['nombres' => 'required|string|max:200', 'nombresP' => 'nullable|string|max:100',
             'apellidos' => 'nullable|string|max:100', 'tipo' => 'required|in:Reclamo,Queja',
             'tipoDoc' => 'required|string|max:20', 'numDoc' => 'required|string|max:20',
