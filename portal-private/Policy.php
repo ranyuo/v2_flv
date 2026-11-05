@@ -204,8 +204,8 @@ final class PortalPolicy
                 if(!is_array($value))throw new PortalError(422,'Configuración no válida.');
                 foreach($value as $setting=>$settingValue){
                     if(self::equal($settingValue,$visible['config'][$setting]??null))continue;
-                    $allowed=$role==='admin'||($role==='imagen'&&in_array($setting,['home','popup','temas','tema','diseno'],true))||($role==='atencion'&&$setting==='bolsa');
-                    if($role!=='admin'&&!self::can($user,['home'=>'portada','popup'=>'portada','temas'=>'temas','tema'=>'temas','diseno'=>'temas','bolsa'=>'ix-bolsa'][$setting]??'config'))$allowed=false;
+                    $allowed=$role==='admin'||($role==='imagen'&&in_array($setting,['home','popup','temas','tema','diseno','disenoColores'],true))||($role==='atencion'&&$setting==='bolsa');
+                    if($role!=='admin'&&!self::can($user,['home'=>'portada','popup'=>'portada','temas'=>'temas','tema'=>'temas','diseno'=>'temas','disenoColores'=>'temas','bolsa'=>'ix-bolsa'][$setting]??'config'))$allowed=false;
                     if(!$allowed)throw new PortalError(403,'Tu rol no puede modificar esa configuración.');
                     $out['config'][$setting]=$settingValue;
                 }

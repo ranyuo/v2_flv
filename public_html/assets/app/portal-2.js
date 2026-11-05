@@ -196,11 +196,24 @@ function themeVars(t) {
   else { const sky = mix(t.blue, '#ffffff', .9); let link = t.blue; for (let k = 0; k < 10 && contrast(link, sky) < 4.6; k++) link = mix(link, '#000000', .1); Object.assign(v, { '--sky': sky, '--hc': t.navy, '--link': link, '--blue-rgb': hexRgb(t.blue).join(','), '--card2': mix(t.blue, '#ffffff', .975), '--bg': mix(t.blue, '#ffffff', .955), '--bg2': mix(t.blue, '#ffffff', .935), '--line': mix(t.navy, '#ffffff', .875), '--line2': mix(t.navy, '#ffffff', .77), '--info': t.blue, '--infobg': mix(t.blue, '#ffffff', .9), '--infoink': mix(t.navy, '#000000', .1) }); }
   return v;
 }
+/* Colores de los diseños «Impacto» y «Impacto FLV»: vacío = color tomado del tema activo */
+const IMP_KEYS = ['impacto', 'impacto-flv'];
+const IMP_CAMPOS = [['acento', 'Color de acento', 'Bloque del logotipo, recuadros, títulos destacados y detalles'], ['oscuro', 'Color oscuro', 'Franja de cifras, pie de página y banner de las páginas interiores'], ['boton', 'Botón «Postula»', 'Botón principal de la cabecera'], ['titulos', 'Títulos', 'Color de los títulos sobre fondo blanco']];
+function impDefaults(key, t) { return key === 'impacto-flv' ? { acento: t.gold, oscuro: t.navy, boton: t.blue, titulos: t.navy } : { acento: t.gold, oscuro: '#000000', boton: t.blue, titulos: '#0d0d0d' }; }
+function impColors(key, t) { const d = impDefaults(key, t), c = ((DB.config.disenoColores || {})[key]) || {}; const o = {}; for (const [k] of IMP_CAMPOS) o[k] = /^#[0-9a-f]{6}$/i.test(c[k] || '') ? c[k] : d[k]; return o; }
+function impApplyColors(t) {
+  let st = document.getElementById('imp-vars'); const key = DB.config.diseno;
+  if (!IMP_KEYS.includes(key)) { if (st) st.textContent = ''; return; }
+  if (!st) { st = document.createElement('style'); st.id = 'imp-vars'; document.head.appendChild(st); }
+  const c = impColors(key, t); const on = bg => contrast('#ffffff', bg) >= contrast('#111111', bg) ? '#ffffff' : '#111111';
+  st.textContent = `:root[data-layout="impacto"] body:not(.is-admin){--iy:${c.acento};--ion:${on(c.acento)};--id:${c.oscuro};--icta:${c.boton};--icton:${on(c.boton)};--ik:${c.titulos}}`;
+}
 const DISENOS = [
   ['clasico', 'Clásico institucional', 'Diseño original del portal: cabecera institucional, carrusel y bloques en tarjetas.'],
   ['moderno', 'Moderno', 'Portada a pantalla completa, menú flotante con efecto vidrio, tarjetas amplias con esquinas redondeadas y sombras suaves.'],
   ['editorial', 'Editorial', 'Estilo de revista digital: tipografía grande, líneas finas, fondo claro y la noticia principal destacada en grande.'],
   ['impacto', 'Impacto', 'Alto contraste en amarillo y negro: logotipo en bloque de color, portada a pantalla completa, títulos condensados en mayúsculas, mosaico de programas, recuadros de color y franja negra de logros. El menú principal no cambia.'],
+  ['impacto-flv', 'Impacto FLV', 'La estructura de Impacto con los colores del FLV: logotipo en bloque dorado, franjas y pie en azul marino del escudo y botón «Postula» en azul. Los colores se pueden ajustar.'],
   ['universitario', 'Universitario', 'Portal de estilo universitario: cabecera oscura con logotipo en bloque blanco, programas con íconos circulares, franjas oscuras y carruseles en paneles. El menú principal no cambia.'],
 ];
 function applyTheme() {
@@ -209,8 +222,9 @@ function applyTheme() {
   let st = document.getElementById('theme-vars'); if (!st) { st = document.createElement('style'); st.id = 'theme-vars'; document.head.appendChild(st); }
   const key = JSON.stringify(t); if (st.dataset.k !== key) { st.textContent = css; st.dataset.k = key; Object.keys(IMG_CACHE || {}).forEach(k => delete IMG_CACHE[k]); }
   if (t.modo === 'oscuro') document.documentElement.dataset.mode = 'dark'; else delete document.documentElement.dataset.mode;
-  const lay = DB.config.diseno; if (DISENOS.some(d => d[0] === lay) && lay !== 'clasico') document.documentElement.dataset.layout = lay; else delete document.documentElement.dataset.layout;
-  if (lay === 'impacto' && !document.getElementById('font-impacto')) { const l = document.createElement('link'); l.id = 'font-impacto'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap'; document.head.appendChild(l); }
+  const lay = DB.config.diseno; if (DISENOS.some(d => d[0] === lay) && lay !== 'clasico') document.documentElement.dataset.layout = IMP_KEYS.includes(lay) ? 'impacto' : lay; else delete document.documentElement.dataset.layout;
+  impApplyColors(t);
+  if (IMP_KEYS.includes(lay) && !document.getElementById('font-impacto')) { const l = document.createElement('link'); l.id = 'font-impacto'; l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap'; document.head.appendChild(l); }
   TC = { navy: t.navy, navy2: t.navy2, blue: t.blue, gold: t.gold };
   const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = t.navy;
 }
@@ -742,7 +756,7 @@ function uniBlocks(base, h, i) {
   });
 }
 /* ===== Diseño «Impacto» (amarillo y negro, títulos condensados). Cabecera, portada y pie propios; el menú es el mismo navModel ===== */
-const isImp = () => !!(DB && DB.config && DB.config.diseno === 'impacto') && !document.body.classList.contains('is-admin');
+const isImp = () => !!(DB && DB.config && IMP_KEYS.includes(DB.config.diseno)) && !document.body.classList.contains('is-admin');
 const I_MES = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SET', 'OCT', 'NOV', 'DIC'];
 const iFecha = (f, anio = true) => { const d = new Date(String(f || '').slice(0, 10) + 'T12:00:00'); return isNaN(d) ? '' : `${String(d.getDate()).padStart(2, '0')} ${I_MES[d.getMonth()]}${anio ? ', ' + d.getFullYear() : ''}`; };
 const iHead = (title, more) => `<div class="i-h"><h2>${title}</h2>${more ? `<a class="i-more" href="${more}">Ver más</a>` : ''}</div>`;
@@ -2776,7 +2790,14 @@ function disenoPanel() {
   const cur = DISENOS.some(d => d[0] === DB.config.diseno) ? DB.config.diseno : 'clasico';
   const mock = k => `<div class="ds-mock ds-${k}" aria-hidden="true"><i class="m-top"></i><i class="m-hero"><b></b><b></b></i><i class="m-cards"><b></b><b></b><b></b></i></div>`;
   return `<section class="panel ds-panel"><div class="pb"><h2 style="margin:0 0 4px">Diseño del portal</h2><p style="margin:0 0 14px;color:var(--muted)">Cambia la estructura visual de todo el sitio público. Los colores siguen el tema activo y el contenido no cambia.</p>
-    <div class="ds-grid">${DISENOS.map(([k, l, d]) => `<article class="ds-item${k === cur ? ' on' : ''}">${mock(k)}<div class="tm-body"><h3>${esc(l)} ${k === cur ? '<span class="badge ok">Activo</span>' : ''}</h3><p>${esc(d)}</p><div class="tm-acts">${k === cur ? '' : `<button class="btn sm" data-dis="${k}">${sic('check', 14)} Activar diseño</button>`}</div></div></article>`).join('')}</div></div></section>`;
+    <div class="ds-grid">${DISENOS.map(([k, l, d]) => `<article class="ds-item${k === cur ? ' on' : ''}">${mock(k)}<div class="tm-body"><h3>${esc(l)} ${k === cur ? '<span class="badge ok">Activo</span>' : ''}</h3><p>${esc(d)}</p><div class="tm-acts">${k === cur ? '' : `<button class="btn sm" data-dis="${k}">${sic('check', 14)} Activar diseño</button>`}</div></div></article>`).join('')}</div>${IMP_KEYS.includes(cur) ? impColorPanel(cur) : ''}</div></section>`;
+}
+function impColorPanel(key) {
+  const t = DB.config.temas[DB.config.tema]; const c = impColors(key, t), d = impDefaults(key, t); const label = (DISENOS.find(x => x[0] === key) || [])[1];
+  return `<form class="ds-colors" data-impcol="${key}"><h3>Colores del diseño «${esc(label)}»</h3><p>Elige los colores y revisa la vista previa. «Restablecer» vuelve a los colores del tema activo.</p>
+    <div class="ds-cgrid">${IMP_CAMPOS.map(([k, l, h]) => `<label class="ds-c"><span><b>${esc(l)}</b><small>${esc(h)}</small></span><input type="color" name="${k}" value="${esc(c[k])}" data-def="${esc(d[k])}"><code>${esc(c[k])}</code></label>`).join('')}</div>
+    <div class="ds-cprev" aria-hidden="true"><i class="p-logo">Logo</i><i class="p-cta">Postula</i><i class="p-ttl">Títulos</i><i class="p-box">+ Recuadro</i><i class="p-dark">Franja y pie</i></div>
+    <div class="tm-acts"><button class="btn sm" type="submit">${sic('check', 14)} Guardar colores</button><button class="btn sm sec" type="button" data-impreset>Restablecer</button></div></form>`;
 }
 CUSTOM.temas = (parts) => {
   ensureThemes();
@@ -2789,6 +2810,14 @@ CUSTOM.temas = (parts) => {
     <div class="tm-grid">${keys.map(k => { const t = T[k], on = k === act; return `<article class="tm-item${on ? ' on' : ''}">${themeMock(t)}<div class="tm-body"><h3>${esc(t.label)} ${on ? '<span class="badge ok">Activo</span>' : ''}${t.base ? '' : ' <span class="badge gray">Personalizado</span>'}</h3><p>${esc(t.desc || '')}</p><div class="tm-acts">${on ? '' : `<button class="btn sm" data-act="${k}">${sic('check', 14)} Activar</button>`}<a class="btn sm sec" href="#/admin/temas/${k}">${sic('edit', 14)} Editar</a><button class="btn sm ghost" data-dup="${k}" title="Duplicar">${sic('copy', 14)}<span class="sr-only">Duplicar ${esc(t.label)}</span></button>${!t.base && !on ? `<button class="btn sm ghost" data-del="${k}" title="Eliminar">${sic('trash', 14)}<span class="sr-only">Eliminar ${esc(t.label)}</span></button>` : ''}</div></div></article>`; }).join('')}</div>`;
   return {
     html, after: () => {
+      const fc = $('[data-impcol]'); if (fc) {
+        const prev = () => { const v = Object.fromEntries(IMP_CAMPOS.map(([k]) => [k, fc.elements[k].value])); const on = bg => contrast('#ffffff', bg) >= contrast('#111111', bg) ? '#fff' : '#111'; const pv = $('.ds-cprev', fc);
+          pv.style.cssText = `--a:${v.acento};--ao:${on(v.acento)};--o:${v.oscuro};--b:${v.boton};--bo:${on(v.boton)};--t:${v.titulos}`; $$('.ds-c', fc).forEach(l => { $('code', l).textContent = $('input', l).value; }); };
+        fc.addEventListener('input', prev); prev();
+        $('[data-impreset]', fc).onclick = () => { IMP_CAMPOS.forEach(([k]) => { fc.elements[k].value = fc.elements[k].dataset.def; }); prev(); };
+        fc.onsubmit = e => { e.preventDefault(); const key = fc.dataset.impcol; const out = {}; IMP_CAMPOS.forEach(([k]) => { const v = fc.elements[k].value.toLowerCase(); if (v !== fc.elements[k].dataset.def.toLowerCase()) out[k] = v; });
+          DB.config.disenoColores = Object.assign({}, DB.config.disenoColores || {}, { [key]: out }); audit('Cambio de colores del diseño', 'Temas y apariencia', key); if (!saveDB()) return; applyTheme(); toast('Colores del diseño guardados.', 'ok'); route(); };
+      }
       $$('[data-dis]').forEach(b => b.onclick = () => { const d = DISENOS.find(x => x[0] === b.dataset.dis); DB.config.diseno = d[0]; audit('Cambio de diseño del portal', 'Temas y apariencia', d[1]); if (!saveDB()) return; applyTheme(); toast('Diseño «' + d[1] + '» activado en todo el portal.', 'ok'); route(); });
       $$('[data-act]').forEach(b => b.onclick = () => { const k = b.dataset.act; DB.config.tema = k; audit('Activación de tema', 'Temas y apariencia', T[k].label); if(!saveDB())return; applyTheme(); toast('Tema «' + T[k].label + '» activado en todo el portal.', 'ok'); route(); });
       $$('[data-dup]').forEach(b => b.onclick = () => { const src = T[b.dataset.dup]; let label = src.label + ' (copia)', n = 2; while (Object.values(T).some(t => t.label === label)) label = src.label + ' (copia ' + n++ + ')'; let k = slugify(label) || 'tema', i = 2; while (T[k] || k === 'nuevo') k = slugify(label) + '-' + i++; T[k] = Object.assign({}, src, { label, base: false }); audit('Creación', 'Temas y apariencia', label, 'Duplicado de ' + src.label); if(!saveDB())return; toast('Tema duplicado. Ya puede editarlo.', 'ok'); go('#/admin/temas/' + k); });
