@@ -2733,3 +2733,34 @@ tr.pz-bad td{background:var(--errbg)}
 .page-banner.slim .ttl{font-size:26px!important;line-height:1.15;margin:0}
 .page-banner.slim p:not(.ttl){display:none}
 @media (max-width:640px){.page-banner.slim{min-height:64px!important;padding:10px 0}.page-banner.slim .ttl{font-size:21px!important}.page-banner.slim .kicker{display:none}}
+/* Servicios en línea (propuesta B): barra de otros servicios discreta, cabecera del servicio en una franja
+   y pestañas segmentadas del servicio. Mesa de partes, Reclamaciones, Certificados y Bolsa laboral. */
+.pz-svnav{background:none!important;border:0!important;border-bottom:1px solid #e3e8f1!important;border-radius:0!important;padding:0 0 8px!important;min-height:0!important;gap:4px!important;margin:0 0 14px!important;box-shadow:none!important;justify-content:flex-start!important}
+.pz-svnav::before{content:"Otros servicios:";color:#6b7a93;font-size:12.5px;padding-right:6px;display:flex;align-items:center;white-space:nowrap}
+.pz-svnav .pz-svnav-h{display:none!important}
+.pz-svnav a{flex:none!important;background:none!important;color:#3d5a8a!important;padding:4px 10px!important;min-height:0!important;font-size:12.5px!important;border-radius:999px!important;border:1px solid transparent!important;box-shadow:none!important}
+.pz-svnav a svg{width:14px!important;height:14px!important;stroke:currentColor!important}
+.pz-svnav a:hover{border-color:#cfd9ea!important}
+.pz-svnav a.on{background:#e8eefb!important;color:var(--navy,#0b2a5e)!important;font-weight:700}
+.pz-mpv-top{display:flex!important;align-items:center;justify-content:space-between;gap:16px;margin:0 0 12px!important;background:linear-gradient(90deg,var(--navy,#0b2a5e),#1f4fa8);border-radius:12px;padding:10px 14px}
+.pz-mpv-top .pz-mh.compact{flex:1;background:none!important;border:0!important;box-shadow:none!important;padding:0!important;gap:10px!important;color:#fff}
+.pz-mpv-top .pz-mh.compact .pz-mh-ic{width:34px!important;height:34px!important;background:rgba(255,255,255,.15)!important}
+.pz-mpv-top .pz-mh.compact .pz-mh-ic svg{width:18px!important;height:18px!important;stroke:#fff!important}
+.pz-mpv-top .pz-mh.compact .pz-mh-k, .pz-mpv-top .pz-mh.compact p{display:none!important}
+.pz-mpv-top .pz-mh.compact h1{font-size:21px!important;margin:0!important;color:#fff!important}
+.pz-mpv-top .pz-horario.compact{flex:none;background:none!important;border:0!important;padding:0!important;box-shadow:none!important;gap:8px!important;max-width:none!important}
+.pz-mpv-top .pz-horario.compact .pz-h-ic{width:28px!important;height:28px!important}
+.pz-mpv-top .pz-horario.compact .pz-h-ic svg{width:15px!important;height:15px!important}
+.pz-mpv-top .pz-horario.compact .pz-k{display:none!important}
+.pz-mpv-top .pz-horario.compact .pz-hh{font-size:15px!important}
+.pz-mpv-top .pz-horario.compact .pz-live{font-size:11.5px!important;margin:0!important;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs.pz-mt{display:inline-flex!important;width:auto!important;background:#eef2f8!important;border:1px solid #dbe3ef!important;border-radius:10px!important;padding:3px!important;margin:0 0 12px!important}
+.tabs.pz-mt button{flex:none!important;padding:7px 16px!important;font-size:13.5px!important;border-radius:8px!important;min-height:0!important}
+.tabs.pz-mt button[aria-selected=true]{background:var(--blue,#1f5fd1)!important;color:#fff!important;box-shadow:none!important}
+.tabs.pz-mt button[aria-selected=true] svg{stroke:#fff!important}
+@media(max-width:760px){.pz-svnav{overflow-x:auto;flex-wrap:nowrap!important}.pz-svnav::before{display:none}.pz-svnav a span{white-space:nowrap}.pz-mpv-top{flex-direction:column;align-items:flex-start!important;gap:6px}.tabs.pz-mt{display:flex!important}.tabs.pz-mt button{flex:1!important;padding:7px 6px!important;font-size:12.5px!important}}
+.pz-mpv-top .pz-mh.compact{flex-direction:row!important;align-items:center!important;text-align:left!important}
+.pz-mpv-top .pz-horario.compact{flex-direction:row!important;align-items:center!important;text-align:left!important}
+.pz-mpv-top .pz-horario.compact>div:last-child{text-align:left}
+@media(max-width:760px){.pz-mpv-top .pz-mh.compact h1{font-size:19px!important} .pz-mpv-top .pz-horario.compact>div:last-child{flex-direction:column;align-items:flex-start!important;gap:0!important}.tabs.pz-mt button{flex-direction:row!important;gap:5px}.tabs.pz-mt button svg{display:none}}
+.pz-mpv-top .pz-mh.compact .pz-mh-tx{display:flex;align-items:center;min-height:34px}
