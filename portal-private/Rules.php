@@ -35,6 +35,12 @@ final class PortalRules
             if(!empty($slide['boton'])&&empty($slide['enlace']))throw new PortalError(422,'Indica el enlace del botón del carrusel.');
             foreach(['ajuste'=>['','cover','contain'],'enfoque'=>['','center','left','right','top','bottom'],'capa'=>['','suave','fuerte','ninguna'],'realce'=>['','no']] as $key=>$allowed)if(!in_array($slide[$key]??'',$allowed,true))throw new PortalError(422,'Una opción de imagen del carrusel no es válida.');
         }
+        foreach($new['programas']??[] as $prog)if(is_array($prog)&&self::changed($old['programas']??[],$prog)&&isset($prog['slug'])&&(!is_string($prog['slug'])||!preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/D',$prog['slug'])))throw new PortalError(422,'El identificador web (slug) del programa solo admite letras minúsculas, números y guiones.');
+        if(!PortalPolicy::equal($old['config']['temas']??null,$new['config']['temas']??null)){
+            if(!is_array($new['config']['temas']??null))throw new PortalError(422,'Los temas no son válidos.');
+            foreach($new['config']['temas'] as $theme){if(!is_array($theme))throw new PortalError(422,'Los temas no son válidos.');foreach(['navy','navy2','blue','gold'] as $c)if(isset($theme[$c])&&(!is_string($theme[$c])||!preg_match('/^#[0-9a-fA-F]{6}$/D',$theme[$c])))throw new PortalError(422,'Los colores del tema deben tener el formato #RRGGBB.');
+                foreach(['fh','ff'] as $f)if(isset($theme[$f])&&(!is_string($theme[$f])||!preg_match('/^[A-Za-z0-9 ]{1,40}$/D',$theme[$f])))throw new PortalError(422,'La tipografía del tema no es válida.');}
+        }
         foreach($new['estadisticas'] as $row)if(self::changed($old['estadisticas'],$row)){
             if(filter_var($row['anio']??null,FILTER_VALIDATE_INT)===false||$row['anio']<2000||$row['anio']>2100||!PortalPolicy::find($new['programas'],'id',$row['programaId']??null))throw new PortalError(422,'El año y programa de la estadística deben ser válidos.');
             foreach(['postulantes','ingresantes','matriculados','egresados','titulados','becas','creditos'] as $key)if(isset($row[$key])&&(filter_var($row[$key],FILTER_VALIDATE_INT)===false||$row[$key]<0))throw new PortalError(422,'Los indicadores estadísticos deben ser enteros no negativos.');
@@ -130,7 +136,7 @@ final class PortalRules
             if(!$link($popup['enlace']??''))throw new PortalError(422,'El enlace del comunicado no es válido.');
             if(!empty($popup['imagen'])&&!self::safeImage($popup['imagen']))throw new PortalError(422,'La imagen del comunicado no es válida.');
             if(!in_array($popup['modelo']??'clasico',['','clasico','promocional'],true))throw new PortalError(422,'El modelo de la ventana emergente no es válido.');
-            foreach(['etiqueta'=>40,'antetitulo'=>60,'t1'=>40,'t2'=>40,'t3'=>40,'t4'=>40,'d1'=>80,'d2'=>80,'d3'=>80,'d4'=>80] as $key=>$max)if(isset($popup[$key])&&(!is_string($popup[$key])||mb_strlen($popup[$key])>$max))throw new PortalError(422,'Un texto de la ventana emergente es demasiado largo.');
+            foreach(['etiqueta'=>40,'antetitulo'=>60,'t1'=>40,'t2'=>40,'t3'=>40,'t4'=>40,'d1'=>80,'d2'=>80,'d3'=>80,'d4'=>80,'titulo'=>150,'texto'=>600,'boton'=>60] as $key=>$max)if(isset($popup[$key])&&(!is_string($popup[$key])||preg_match_all('/./su',$popup[$key])>$max))throw new PortalError(422,'Un texto de la ventana emergente es demasiado largo.');
         }
         if($changed('inst')){
             $inst=$new['config']['inst']??[];foreach(['nombre','nombreCorto','direccion','telefono','correo','horario','fechaCreacion'] as $key)if(!is_string($inst[$key]??null)||trim($inst[$key])==='')throw new PortalError(422,'Completa el dato institucional '.$key.'.');

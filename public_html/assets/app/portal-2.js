@@ -234,7 +234,8 @@ const DCFG = {
   'horizonte': { campos: HOR_CAMPOS, presets: HOR_PRESETS, def: () => ({ primario: '#1e3f8a', acento: '#cc4a0a', fondo: '#eef4fd' }) },
 };
 const dOn = bg => contrast('#ffffff', bg) >= contrast('#111111', bg) ? '#ffffff' : '#111111';
-function impColors(key, t) { const cf = DCFG[key]; const d = cf.def(t), c = ((DB.config.disenoColores || {})[key]) || {}; const o = {}; for (const [k] of cf.campos) o[k] = /^#[0-9a-f]{6}$/i.test(c[k] || '') ? c[k] : d[k]; return o; }
+const hexOk = (v, f) => /^#[0-9a-f]{6}$/i.test(String(v || '')) ? v : f;
+function impColors(key, t) { const cf = DCFG[key]; t = Object.assign({}, t, { navy: hexOk(t && t.navy, '#0c2a5b'), navy2: hexOk(t && t.navy2, '#16449a'), blue: hexOk(t && t.blue, '#1e5fc8'), gold: hexOk(t && t.gold, '#f2b705') }); const d = cf.def(t), c = ((DB.config.disenoColores || {})[key]) || {}; const o = {}; for (const [k] of cf.campos) o[k] = /^#[0-9a-f]{6}$/i.test(c[k] || '') ? c[k] : d[k]; return o; }
 function impApplyColors(t) {
   let st = document.getElementById('imp-vars'); const key = DB.config.diseno;
   if (!DCFG[key]) { if (st) st.textContent = ''; return; }
@@ -972,7 +973,7 @@ function camBlocks(base, h, i) {
   const pics = [...sl.map(s => s.imagen), ...ps.map(p => p.imagen)].filter(Boolean);
   const loc = P('locales').filter(isPub).find(l => l.foto);
   const dirJ = P('jerarquica').find(j => j.esDirector) || {}; const dir = persona(dirJ.personaId);
-  const lay = (href, imgSrc, icon, title, k, more = 'Conoce más aquí') => `<a class="k-lay" href="${href}" style="--kt:${K_TONOS[k % 4]}"><span class="k-lay-p"><img src="${img(imgSrc)}" alt="" loading="lazy"></span><span class="k-lay-l"><span class="k-lay-n">${ic(icon)}<b>${esc(title)}</b></span><em>${esc(more)} ›</em></span></a>`;
+  const lay = (href, imgSrc, icon, title, k, more = 'Conoce más aquí') => `<a class="k-lay" href="${esc(href)}" style="--kt:${K_TONOS[k % 4]}"><span class="k-lay-p"><img src="${img(imgSrc)}" alt="" loading="lazy"></span><span class="k-lay-l"><span class="k-lay-n">${ic(icon)}<b>${esc(title)}</b></span><em>${esc(more)} ›</em></span></a>`;
   const car = (items, label) => uCar(items, label);
   return Object.assign({}, base, {
     programas: () => ps.length ? `<section class="k-sec"><div class="wrap">${kTtl('Nuestros programas pensados en ti')}<div class="k-tabs" role="list"><span role="listitem" class="on">Programas de estudio</span><a role="listitem" href="#/admision">Admisión ${esc(String((admVigente() || {}).anio || new Date().getFullYear()))}</a><a role="listitem" href="#/becas">Becas</a></div>
@@ -1087,7 +1088,8 @@ function cifLink(x) {
 function cifNum(v) {
   const t = String(v); const m = t.match(/^(\D*?)(\d[\d.,\s]*\d|\d)(\D*)$/);
   if (!m) return esc(t);
-  const raw = m[2]; const sep = (raw.match(/[.,\s](?=\d{3}(?:\D|$))/) || [''])[0]; const n = +raw.replace(/[.,\s]/g, '');
+  const raw = m[2]; if (!/^\d{1,3}(?:([.,\s])\d{3}(?:\1\d{3})*)?$/.test(raw) && !/^\d+$/.test(raw)) return esc(t);
+  const sep = (raw.match(/[.,\s](?=\d{3}(?:\D|$))/) || [''])[0]; const n = +raw.replace(/[.,\s]/g, '');
   if (!isFinite(n)) return esc(t);
   const from = /^(19|20)\d{2}$/.test(raw) ? n - 40 : 0;
   return `<span class="sr-only">${esc(t)}</span><span class="cif-n" aria-hidden="true" data-count="${n}" data-from="${from}" data-pre="${esc(m[1])}" data-suf="${esc(m[3])}" data-sep="${esc(sep)}" style="min-width:${t.length}ch">${esc(t)}</span>`;
@@ -1855,7 +1857,7 @@ function promoPopup(p) {
 }
 
 /* vista previa desde Portada › Ventana emergente */
-if (!window.__popPrev) { window.__popPrev = true; document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-popprev]'); if (!b) return; const f = b.closest('form') || document; const w = Object.assign({}, DB.config.popup); $$('[name]', f).forEach(x => { if (x.type === 'checkbox') w[x.name] = x.checked; else if (x.type !== 'file') w[x.name] = x.value; }); if (ADM.work && ADM.workKey && /Ventana emergente/.test(ADM.workKey)) Object.assign(w, { imagen: ADM.work.imagen }); if (!w.titulo) w.titulo = 'Título de la ventana'; if (w.modelo === 'promocional') promoPopup(w); else { const m = modal({ title: esc(w.titulo), size: 'sm', body: `${w.imagen ? `<img src="${img(w.imagen)}" alt="" style="border-radius:10px;margin-bottom:12px;aspect-ratio:16/10;object-fit:cover;width:100%">` : ''}<p>${esc(w.texto || '')}</p>`, foot: w.enlace ? `<span class="btn gold">${esc(w.boton || 'Ver más')}</span>` : '' }); } }); }
+if (!window.__popPrev) { window.__popPrev = true; document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-popprev]'); if (!b) return; const f = b.closest('form') || document; const w = Object.assign({}, DB.config.popup); $$('[name]', f).forEach(x => { if (x.type === 'checkbox') w[x.name] = x.checked; else if (x.type !== 'file') w[x.name] = x.value; }); if (ADM.work && ADM.workKey && /Ventana emergente/.test(ADM.workKey)) Object.assign(w, { imagen: ADM.work.imagen }); if (!w.titulo) w.titulo = 'Título de la ventana'; if (w.modelo === 'promocional') { const pv = promoPopup(w); $$('a', pv.el).forEach(a => { a.removeAttribute('href'); a.removeAttribute('target'); a.setAttribute('aria-disabled', 'true'); a.style.cursor = 'default'; a.onclick = ev => ev.preventDefault(); }); } else { const m = modal({ title: esc(w.titulo), size: 'sm', body: `${w.imagen ? `<img src="${img(w.imagen)}" alt="" style="border-radius:10px;margin-bottom:12px;aspect-ratio:16/10;object-fit:cover;width:100%">` : ''}<p>${esc(w.texto || '')}</p>`, foot: w.enlace ? `<span class="btn gold">${esc(w.boton || 'Ver más')}</span>` : '' }); } }); }
 
 /* ==== admin1.js ==== */
 /* =========================================================
