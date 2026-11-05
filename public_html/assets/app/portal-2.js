@@ -217,10 +217,20 @@ const HOR_PRESETS = [
   ['Marino y celeste', { primario: '#0c2a5b', acento: '#1a6fc0', fondo: '#eef5fd' }],
   ['Azul y verde', { primario: '#163e7a', acento: '#0c7556', fondo: '#eef6f3' }],
 ];
+/* «Campus»: color principal, oscuro (botones y tarjetas) y pie */
+const CAM_CAMPOS = [['primario', 'Color principal', 'Barra superior, títulos, botones principales y franja del pie'], ['oscuro', 'Color oscuro', 'Pestaña activa, botones secundarios y tarjetas de «¿Por qué estudiar?»'], ['pie', 'Fondo de enlaces del pie', 'Bloque de enlaces sobre la franja de color']];
+const CAM_PRESETS = [
+  ['Carmesí y negro', { primario: '#d6173c', oscuro: '#111111', pie: '#4a4a4a' }],
+  ['FLV institucional', { primario: '#0c2a5b', oscuro: '#111827', pie: '#1f2f4d' }],
+  ['Azul FLV y gris', { primario: '#1e5fc8', oscuro: '#0c2a5b', pie: '#3f4650' }],
+  ['Vino académico', { primario: '#8a1538', oscuro: '#1c1c1c', pie: '#463238' }],
+  ['Verde y grafito', { primario: '#0f7a5c', oscuro: '#1b1f1d', pie: '#3c4541' }],
+];
 /* diseños con colores configurables */
 const DCFG = {
   'impacto': { campos: IMP_CAMPOS, presets: IMP_PRESETS, def: t => impDefaults('impacto', t) },
   'impacto-flv': { campos: IMP_CAMPOS, presets: IMP_PRESETS, def: t => impDefaults('impacto-flv', t) },
+  'campus': { campos: CAM_CAMPOS, presets: CAM_PRESETS, def: () => ({ primario: '#d6173c', oscuro: '#111111', pie: '#4a4a4a' }) },
   'horizonte': { campos: HOR_CAMPOS, presets: HOR_PRESETS, def: () => ({ primario: '#1e3f8a', acento: '#cc4a0a', fondo: '#eef4fd' }) },
 };
 const dOn = bg => contrast('#ffffff', bg) >= contrast('#111111', bg) ? '#ffffff' : '#111111';
@@ -230,6 +240,8 @@ function impApplyColors(t) {
   if (!DCFG[key]) { if (st) st.textContent = ''; return; }
   if (!st) { st = document.createElement('style'); st.id = 'imp-vars'; document.head.appendChild(st); }
   const c = impColors(key, t); const on = dOn;
+  if (key === 'campus') { const txt = (() => { let x = c.primario; for (let k = 0; k < 14 && contrast(x, '#ffffff') < 4.5; k++) x = mix(x, '#000000', .08); return x; })();
+    st.textContent = `:root[data-layout="campus"] body:not(.is-admin){--kp:${c.primario};--kpo:${on(c.primario)};--kpd:${mix(c.primario, '#000000', .2)};--kpt:${txt};--kpl:${mix(c.primario, '#ffffff', .92)};--kk:${c.oscuro};--kko:${on(c.oscuro)};--kf:${c.pie};--kfo:${on(c.pie)}}`; return; }
   if (key === 'horizonte') { st.textContent = `:root[data-layout="horizonte"] body:not(.is-admin){--hp:${c.primario};--hpo:${on(c.primario)};--hpd:${mix(c.primario, '#000000', .28)};--hpl:${mix(c.primario, '#ffffff', .55)};--ha:${c.acento};--hao:${on(c.acento)};--hat:${(() => { if (contrast(c.acento, '#ffffff') >= 4.5) return c.acento; if (contrast(c.acento, '#ffffff') >= 3.2) { let x = c.acento; for (let k = 0; k < 8 && contrast(x, '#ffffff') < 4.5; k++) x = mix(x, '#000000', .06); return x; } let x = mix(c.primario, '#2f7cf6', .55); for (let k = 0; k < 12 && contrast(x, '#ffffff') < 4.5; k++) x = mix(x, '#000000', .08); return x; })()};--hf:${c.fondo}}`; return; }
   st.textContent = `:root[data-layout="impacto"] body:not(.is-admin){--iy:${c.acento};--ion:${on(c.acento)};--id:${c.oscuro};--icta:${c.boton};--icton:${on(c.boton)};--ik:${c.titulos}}`;
 }
@@ -239,6 +251,7 @@ const DISENOS = [
   ['editorial', 'Editorial', 'Estilo de revista digital: tipografía grande, líneas finas, fondo claro y la noticia principal destacada en grande.'],
   ['impacto', 'Impacto', 'Alto contraste en amarillo y negro: logotipo en bloque de color, portada a pantalla completa, títulos condensados en mayúsculas, mosaico de programas, recuadros de color y franja negra de logros. El menú principal no cambia.'],
   ['impacto-flv', 'Impacto FLV', 'La estructura de Impacto con los colores del FLV: logotipo en bloque dorado, franjas y pie en azul marino del escudo y botón «Postula» en azul. Los colores se pueden ajustar.'],
+  ['campus', 'Campus', 'Portal de universidad con barra superior de color, menú en mayúsculas sobre la portada, títulos centrados subrayados, tarjetas de programas en capas de colores, botones flotantes «Postula», eventos y noticias en tarjetas y pie en dos bloques. Los colores se pueden ajustar.'],
   ['horizonte', 'Horizonte', 'Portal de universidad moderna: cabecera con logotipo en bloque de color, tarjeta translúcida sobre la portada, panel de oferta formativa, franjas de color con esquinas redondeadas y títulos en dos colores. Los colores se pueden ajustar.'],
   ['universitario', 'Universitario', 'Portal de estilo universitario: cabecera oscura con logotipo en bloque blanco, programas con íconos circulares, franjas oscuras y carruseles en paneles. El menú principal no cambia.'],
 ];
@@ -696,6 +709,7 @@ function headerHTML(path) {
   if (isUni()) return uniHeader(path, nav, cur);
   if (isImp()) return impHeader(path, nav, cur);
   if (isHor()) return horHeader(path, nav, cur);
+  if (isCam()) return camHeader(path, nav, cur);
   return `<a class="skip" href="#contenido" onclick="event.preventDefault();document.getElementById('contenido').focus()">Saltar al contenido principal</a>
   <div class="topbar"><div class="wrap"><span>${esc(i.slogan)}</span><div class="tb-links">
     <a href="mailto:${esc(i.correo)}" class="hide-sm">${ic('mail')} ${esc(i.correo)}</a><a href="tel:${esc(i.telefono.replace(/\D/g, ''))}">${ic('phone')} ${esc(i.telefono)}</a>
@@ -714,6 +728,7 @@ function footerHTML() {
   if (isUni()) return uniFooter();
   if (isImp()) return impFooter();
   if (isHor()) return horFooter();
+  if (isCam()) return camFooter();
   const i = inst(), r = DB.config.redes;
   const soc = ['facebook', 'youtube', 'instagram', 'tiktok'].filter(k => r[k]).map(k => `<a href="${esc(r[k])}" target="_blank" rel="noopener noreferrer" aria-label="${k} (se abre en una pestaña nueva)">${bic(k)}</a>`).join('');
   const ci = (icon, label, val) => `<li><span class="f-ic">${ic(icon)}</span><span><small>${label}</small>${val}</span></li>`;
@@ -919,6 +934,70 @@ function horBlocks(base, h, i) {
       return `<section class="h-ev"><div class="wrap"><div class="h-th h-th-l">${hTtl('Próximos', 'eventos')}${hMore('#/eventos', 'Ver agenda')}</div><div class="grid g3">${ev.map(eventCard).join('')}</div></div></section>`; },
   });
 }
+/* ===== Diseño «Campus»: barra de color, menú en mayúsculas sobre la portada y tarjetas en capas ===== */
+const isCam = () => !!(DB && DB.config && DB.config.diseno === 'campus') && !document.body.classList.contains('is-admin');
+const kTtl = (t, tag = 'h2', cls = '') => `<${tag} class="k-ttl ${cls}">${t}</${tag}>`;
+const K_TONOS = ['var(--kp)', '#0b7d87', '#2a4f8f', '#8a5596'];
+function camHeader(path, nav, cur) {
+  const i = inst(); const r = DB.config.redes || {};
+  const soc = ['facebook', 'youtube', 'instagram', 'tiktok'].filter(k => r[k]).map(k => `<a href="${esc(r[k])}" target="_blank" rel="noopener noreferrer" aria-label="${k} (se abre en una pestaña nueva)">${bic(k)}</a>`).join('');
+  const top = [['#/servicios', 'Servicios en línea'], ['#/servicios/bolsa-laboral', 'Bolsa laboral'], [ext('biblioteca'), 'Biblioteca'], ['#/eventos', 'Eventos'], ['#/transparencia/documentos-gestion', 'Transparencia']].filter(x => x[0]);
+  return `<a class="skip" href="#contenido" onclick="event.preventDefault();document.getElementById('contenido').focus()">Saltar al contenido principal</a>
+  <div class="k-top"><div class="k-tw">${soc ? `<div class="k-soc">${soc}</div>` : ''}<nav class="k-tl" aria-label="Accesos">${top.map(([h, l]) => `<a ${linkAttrs(h)}>${esc(l)}${/^https?:/.test(h) ? '<span class="sr-only"> (enlace externo)</span>' : ''}</a>`).join('')}</nav><a class="k-portal" href="#/admin">Intranet</a>${ext('aula') ? `<a class="k-portal" ${linkAttrs(ext('aula'))}>Plataforma virtual<span class="sr-only"> (enlace externo)</span></a>` : ''}</div></div>
+  <header class="site-header k-head"><div class="k-bar">
+    <a class="k-brand" href="#/" aria-label="${esc(i.nombreCorto)} - ir a inicio"><img src="${logoSrc()}" alt="Logotipo del ${esc(i.nombre)}"><span><strong>${esc(i.logoSigla || i.nombreCorto)}</strong><small>${esc(i.nombreCorto)}</small></span></a>
+    <nav class="mainnav" id="mainnav" aria-label="Navegación principal"><div class="wrap"><ul><li><a class="top home ${cur === '' ? 'active' : ''}" href="#/" aria-label="Inicio">${ic('home')}<span class="hide-lg">Inicio</span></a></li>${nav}</ul>
+      <form class="mobile-search" role="search" data-search><label class="sr-only" for="q2">Buscar</label><input class="inp" id="q2" name="q" placeholder="Buscar en el sitio..."><button class="btn gold sm">Buscar</button></form></div></nav>
+    <button type="button" class="u-sb k-sb" aria-expanded="false" aria-controls="u-srch" aria-label="Abrir el buscador">${ic('search')}</button>
+    <button class="menu-btn" aria-expanded="false" aria-controls="mainnav" data-menu>☰ <span class="sr-only">Abrir menú</span></button></div>
+    <form class="u-srch" id="u-srch" role="search" data-search hidden><div class="wrap"><label class="sr-only" for="q1">Buscar en el sitio</label><input id="q1" name="q" placeholder="¿Qué estás buscando?"><button class="btn">${ic('search')} Buscar</button></div></form></header>
+  ${['servicios', 'admin', 'contacto'].includes(cur) || /^(mesa-de-partes|certificados|libro-de-reclamaciones|bolsa-laboral)$/.test(cur) ? '' : `<div class="k-float${cur ? ' k-mini' : ''}" aria-label="Accesos destacados"><a class="k-f1" href="#/admision">${ic('send')}<span>Quiero postular</span></a><a class="k-f2" href="#/servicios/mesa-de-partes">${ic('inbox')}<span>Mesa de partes</span></a><a class="k-f3" href="#/servicios/consulta-certificados">${ic('award')}<span>Certificados</span></a></div>`}`;
+}
+function camFooter() {
+  const i = inst(); const r = DB.config.redes || {}; const tel = String(i.telefono || '').replace(/\D/g, '');
+  const soc = ['facebook', 'youtube', 'instagram', 'tiktok'].filter(k => r[k]).map(k => `<a href="${esc(r[k])}" target="_blank" rel="noopener noreferrer" aria-label="${k} (se abre en una pestaña nueva)">${bic(k)}</a>`).join('');
+  const cols = [[['#/', 'Inicio'], ['#/programas', 'Programas de estudio'], ['#/admision', 'Admisión'], ['#/matricula', 'Matrícula'], ['#/becas', 'Becas']],
+    [['#/nosotros/presentacion', 'Nosotros'], ['#/noticias', 'Noticias'], ['#/eventos', 'Eventos'], ['#/nosotros/plana-docente', 'Plana docente'], ['#/contacto', 'Contáctanos']],
+    [['#/servicios/mesa-de-partes', 'Mesa de partes'], ['#/servicios/consulta-certificados', 'Consulta de certificados'], ['#/servicios/bolsa-laboral', 'Bolsa laboral'], ['#/transparencia/documentos-gestion', 'Portal de transparencia'], ['#/politica-de-privacidad', 'Política de privacidad']]];
+  return `<footer class="site-footer k-foot"><div class="k-fl"><div class="wrap k-fg">${cols.map(c => `<ul>${c.map(([h, l]) => `<li><a href="${h}">${esc(l)}</a></li>`).join('')}</ul>`).join('')}</div></div>
+    <div class="k-fb"><div class="wrap k-fg"><div>${soc ? `<div class="k-soc k-soc-b">${soc}</div>` : ''}<a href="#/servicios/libro-de-reclamaciones" class="k-lr">${ic('book')}<span>Libro de<br>Reclamaciones</span></a></div>
+      <div><h2>Ubícanos</h2><p>${esc(i.direccion)}<br>Correo: <a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a><br>Teléfono: <a href="tel:${esc(tel)}">${esc(i.telefono)}</a></p></div>
+      <div><h2>Horario de atención</h2><p>${esc(i.horario)}</p><p class="k-fx"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a><a ${linkAttrs(ext('dre') || 'https://www.dreica.gob.pe/')}>DRE Ica</a></p></div></div></div>
+    <div class="k-copy"><div class="wrap"><span>© ${yearNow()} ${esc(i.nombre)} | Todos los derechos reservados.</span>${i.ruc ? `<span>RUC: ${esc(i.ruc)}</span>` : ''}</div></div></footer>
+  ${DB.config.whatsapp.activo && DB.config.whatsapp.numero ? `<a class="wa" href="https://wa.me/${esc(DB.config.whatsapp.numero)}?text=${encodeURIComponent(DB.config.whatsapp.mensaje)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${bic('whatsapp')}</a>` : ''}`;
+}
+/* bloques de portada del diseño «Campus»: mismos bloques y mismo orden/visibilidad que configura Portada */
+function camBlocks(base, h, i) {
+  const ps = progs(); const sl = sortO(P('slides').filter(isPub));
+  const pics = [...sl.map(s => s.imagen), ...ps.map(p => p.imagen)].filter(Boolean);
+  const loc = P('locales').filter(isPub).find(l => l.foto);
+  const dirJ = P('jerarquica').find(j => j.esDirector) || {}; const dir = persona(dirJ.personaId);
+  const lay = (href, imgSrc, icon, title, k, more = 'Conoce más aquí') => `<a class="k-lay" href="${href}" style="--kt:${K_TONOS[k % 4]}"><span class="k-lay-p"><img src="${img(imgSrc)}" alt="" loading="lazy"></span><span class="k-lay-l"><span class="k-lay-n">${ic(icon)}<b>${esc(title)}</b></span><em>${esc(more)} ›</em></span></a>`;
+  const car = (items, label) => uCar(items, label);
+  return Object.assign({}, base, {
+    programas: () => ps.length ? `<section class="k-sec"><div class="wrap">${kTtl('Nuestros programas pensados en ti')}<div class="k-tabs" role="list"><span role="listitem" class="on">Programas de estudio</span><a role="listitem" href="#/admision">Admisión ${esc(String((admVigente() || {}).anio || new Date().getFullYear()))}</a><a role="listitem" href="#/becas">Becas</a></div>
+      <div class="k-car">${car(ps.map((p, k) => lay('#/programas/' + p.slug, p.imagen, U_IC[p.icono] && ICONS[U_IC[p.icono]] ? U_IC[p.icono] : (ICONS[p.icono] ? p.icono : 'grad'), p.nombre, k)), 'Programas de estudio')}</div></div></section>` : '',
+    beneficios: () => { const bs = h.beneficios.slice(0, 5); if (!bs.length) return '';
+      return `<section class="k-sec k-gray">${kTtl(`¿Por qué estudiar en el ${esc(i.nombreCorto)}?`)}<div class="wrap k-why">${bs.map((b, k) => `<details class="k-wc"><summary><img src="${img(pics[k % Math.max(pics.length, 1)] || '')}" alt="" loading="lazy"><span><b>${esc(b.t)}</b><em>Conoce más aquí</em></span></summary><p>${esc(b.d)}</p></details>`).join('')}</div></section>`; },
+    accesos: () => { const qs = h.accesos.map(a => ({ a, u: resolveLink(a.enlace) })).filter(x => x.u); if (!qs.length) return '';
+      return `<section class="k-sec">${kTtl('Servicios en línea para ti')}<div class="wrap"><div class="k-car">${car(qs.map(({ a, u }, k) => `<a class="k-lay k-lay-s" ${linkAttrs(u)} style="--kt:${K_TONOS[k % 4]}"><span class="k-lay-p k-lay-i">${ic(a.icono)}</span><span class="k-lay-l"><span class="k-lay-n"><b>${esc(a.titulo)}</b></span><em>${esc(a.texto || 'Ingresar')} ›</em></span></a>`), 'Servicios en línea')}</div></div></section>`; },
+    eventos: () => { const ev = P('eventos').filter(e => isPub(e) && new Date(e.fecha) >= new Date(new Date().toDateString())).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 3); if (!ev.length) return '';
+      return `<section class="k-sec k-gray"><div class="wrap"><h2 class="k-ttl k-left"><small>Nuestros</small>Próximos eventos</h2><div class="k-ev">${ev.map(e => { const d = new Date(e.fecha); return `<article><img src="${img(e.imagen, 'ph:campus:2')}" alt="" loading="lazy"><h3>${esc(e.titulo)}</h3><p>${ic('calendar')}${fdate(e.fecha)}</p><p>${ic('clock')}${pad(d.getHours())}:${pad(d.getMinutes())} h</p>${e.lugar ? `<p>${ic('map')}${esc(e.lugar)}</p>` : ''}<a class="k-pill k-pill-d" href="#/eventos">Más información ❯</a></article>`; }).join('')}</div>
+        <a class="k-wide" href="#/eventos">Ver todos los eventos aquí ❯</a></div></section>`; },
+    noticias: () => { const ns = pubNews().slice(0, newsCount()); return `<section class="k-sec">${kTtl('Noticias para tu éxito')}<div class="wrap">${ns.length ? newsWrap(ns.map(n => `<article class="k-nc"><img src="${img(n.imagen, 'ph:campus:4')}" data-fit="${newsImageFit(n)}" alt="" loading="lazy"><div><time datetime="${esc(n.fecha)}">${fdate(n.fecha)}</time><h3><a href="#/noticias/${esc(n.slug)}">${esc(n.titulo)}</a></h3><span class="k-cat">${esc((P('categoriasNoticia').find(c => c.id === n.categoriaId) || {}).nombre || 'Noticias')}</span></div></article>`), h2 => `<div class="k-news">${h2}</div>`, 'tarjetas', 'k-ncar') : emptyMsg('noticias')}<a class="k-wide" href="#/noticias">Más noticias ❯</a></div></section>`; },
+    bienvenida: () => { const pr = page('presentacion'); if (!pr || !isPub(pr)) return ''; const tx = pr.contenido.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return `<section class="k-promo"><div class="wrap k-2"><div><h2 class="k-ttl k-left k-big">Mensaje de la Dirección General</h2><p class="k-lead">${esc(fullName(dir))}</p><p class="k-acc">${esc(dirJ.cargo || 'Dirección General')}</p><p>${esc(clamp(tx, 260))}</p><a class="k-pill" href="#/nosotros/presentacion">Más información ❯</a></div>
+        <div class="k-circles" aria-hidden="true"><i class="k-ring r1"></i><i class="k-ring r2"></i><i class="k-dot"></i><span class="k-c1"><img src="${img(dir && dir.foto)}" alt=""></span><span class="k-c2"><img src="${img(loc && loc.foto || pics[0])}" alt=""></span><span class="k-tag">${esc(i.lema || i.slogan || i.nombreCorto)}</span></div></div></section>`; },
+    cifras: () => { const cs = h.cifras.filter(x => String(cifra(x.valor)).trim()); if (!cs.length) return '';
+      return `<section class="k-nums" aria-label="Cifras institucionales"><div class="wrap k-ng">${cs.map(x => `<div class="cif${cifLink(x) ? ' cif-a' : ''}"><b>${cifNum(cifra(x.valor))}</b><span>${esc(x.label)}</span><small>Corte ${esc(x.corte)}</small>${cifA(x)}</div>`).join('')}</div></section>`; },
+    jerarquica: () => { const js = sortO(P('jerarquica').filter(isPub)).map(j => ({ j, p: persona(j.personaId) })).filter(x => x.p); if (!js.length) return '';
+      return `<section class="k-sec">${kTtl('Nuestro equipo directivo')}<div class="wrap"><div class="k-car">${car(js.map(({ j, p }, k) => lay('#/nosotros/plana-jerarquica', p.foto, 'user', fullName(p), k, j.cargo)), 'Plana jerárquica')}</div></div></section>`; },
+    testimonios: () => { const es = P('egresados').filter(isPub).slice(0, 3); if (!es.length) return '';
+      return `<section class="k-sec k-gray">${kTtl('Lo que dicen nuestros egresados')}<div class="wrap k-news">${es.map(e => `<figure class="k-nc k-q"><img src="${img(e.foto)}" alt="" loading="lazy"><figcaption><q>${esc(clamp(e.testimonio || '', 160))}</q><b>${esc(e.nombres)}</b><span class="k-cat">${esc((progById(e.programaId) || {}).nombre || '')}</span></figcaption></figure>`).join('')}</div></section>`; },
+    enlaces: () => { const all = coll('enlaces').filter(l => !l.deleted && ext(l.id)); let ls = all.filter(l => l.grupo === 'minedu'); if (!ls.length) ls = all.filter(l => l.grupo === 'Institucional' && l.id !== 'web'); if (!ls.length) return '';
+      return `<section class="k-sec k-gray">${kTtl('Plataformas del Estado')}<div class="wrap k-logos">${ls.map(l => `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"><b>${esc((l.id.length <= 10 ? l.id : l.nombre.split(/\s+/)[0]).toUpperCase())}</b><small>${esc(l.nombre)}</small><span class="sr-only"> (se abre en una pestaña nueva)</span></a>`).join('')}</div></section>`; },
+  });
+}
 function bannerHTML(b, slim = false) {
   /* En los servicios en línea (formularios) el banner es bajo para que el formulario quede a la vista. */
   return `<section class="page-banner${slim ? ' slim' : ''}" aria-label="Banner de la sección"><img class="bg" src="${img(b.img || (DB.locales || []).find(l => isPub(l))?.foto || inst().logo)}" alt=""><div class="wrap">${b.kicker ? `<div class="kicker">${esc(b.kicker)}</div>` : ''}<p class="ttl" aria-hidden="true">${esc(b.title)}</p>${b.text ? `<p>${esc(b.text)}</p>` : ''}</div></section>`;
@@ -986,7 +1065,7 @@ R('', path => {
     eventos: () => { const ev = P('eventos').filter(e => isPub(e) && new Date(e.fecha) >= new Date(new Date().toDateString())).sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).slice(0, 3); return ev.length ? `<section class="sec"><div class="wrap"><div class="sec-h"><span class="kicker">Agenda</span><h2>Próximos eventos</h2></div><div class="grid g3">${ev.map(eventCard).join('')}</div><p style="text-align:center;margin-top:18px"><a class="btn sec" href="#/eventos">Ver agenda completa</a></p></div></section>` : ''; },
     enlaces: () => `<section class="sec alt"><div class="wrap"><div class="sec-h"><span class="kicker">Plataformas del Estado</span><h2>Enlaces institucionales</h2></div>${mineduLinks()}</div></section>`,
   };
-  const B = isUni() ? uniBlocks(blocks, h, i) : isImp() ? impBlocks(blocks, h, i) : isHor() ? horBlocks(blocks, h, i) : blocks;
+  const B = isUni() ? uniBlocks(blocks, h, i) : isImp() ? impBlocks(blocks, h, i) : isHor() ? horBlocks(blocks, h, i) : isCam() ? camBlocks(blocks, h, i) : blocks;
   // «Horizonte»: el panel de oferta formativa va sobre la portada, como en el diseño de referencia; el resto conserva el orden configurado.
   let order = h.bloques; if (isHor()) { const pr = order.find(b => b.k === 'programas' && b.on); if (pr && order.some(b => b.k === 'slider' && b.on)) { order = order.filter(b => b !== pr); order.splice(order.findIndex(b => b.k === 'slider') + 1, 0, pr); } }
   const body = order.filter(b => b.on && B[b.k]).map(b => B[b.k]()).join('');
@@ -1692,6 +1771,7 @@ function bindPublicChrome() {
     box.addEventListener('focusout', e => { if (e.relatedTarget && !box.contains(e.relatedTarget)) close(false); }); }
   $$('[data-iach]').forEach(sec => { if (!sec.matches('section')) return; const its = $$('.i-ach-i', sec); let k = 0;
     $$('button[data-iach]', sec).forEach(b => b.onclick = () => { its[k].hidden = true; its[k].classList.remove('on'); k = (k + (+b.dataset.iach) + its.length) % its.length; its[k].hidden = false; its[k].classList.add('on'); cifInit(its[k]); }); });
+  if ($('.k-head')) { const ksc = () => { const h = $('.k-head'); if (h) h.classList.toggle('k-sc', scrollY > 60); }; ksc(); if (!window.__kScBound) { window.__kScBound = true; addEventListener('scroll', ksc, { passive: true }); } }
   $$('[data-htabgroup]').forEach(g => { const bs = $$('[data-htab]', g), ps = $$('[data-hpane]', g); let k = 0;
     const show = n => { k = (n + bs.length) % bs.length; bs.forEach((b, x) => { b.setAttribute('aria-selected', x === k ? 'true' : 'false'); b.tabIndex = x === k ? 0 : -1; }); ps.forEach((p, x) => { p.hidden = x !== k; }); };
     bs.forEach((b, x) => { b.onclick = () => show(x); b.onkeydown = e => { if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); show(k + 1); bs[k].focus(); } if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); show(k - 1); bs[k].focus(); } }; });

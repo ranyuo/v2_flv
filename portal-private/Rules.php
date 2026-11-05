@@ -114,11 +114,11 @@ final class PortalRules
             if(!in_array($home['noticiasVista']??'',['','tarjetas','carrusel'],true))throw new PortalError(422,'La vista de las noticias no es válida.');
             if(count($home['beneficios'])>8&&!PortalPolicy::equal($old['config']['home']['beneficios']??null,$home['beneficios']))throw new PortalError(422,'La portada admite como máximo ocho beneficios.');
         }
-        if($changed('diseno')&&!in_array($new['config']['diseno']??null,['clasico','moderno','editorial','universitario','impacto','impacto-flv','horizonte'],true))throw new PortalError(422,'El diseño del portal no es válido.');
+        if($changed('diseno')&&!in_array($new['config']['diseno']??null,['clasico','moderno','editorial','universitario','impacto','impacto-flv','horizonte','campus'],true))throw new PortalError(422,'El diseño del portal no es válido.');
         if($changed('disenoColores')){
             $colors=$new['config']['disenoColores']??null;if(!is_array($colors))throw new PortalError(422,'Los colores del diseño no son válidos.');
             foreach($colors as $design=>$values){
-                $fields=['impacto'=>['acento','oscuro','boton','titulos'],'impacto-flv'=>['acento','oscuro','boton','titulos'],'horizonte'=>['primario','acento','fondo']][$design]??null;
+                $fields=['impacto'=>['acento','oscuro','boton','titulos'],'impacto-flv'=>['acento','oscuro','boton','titulos'],'horizonte'=>['primario','acento','fondo'],'campus'=>['primario','oscuro','pie']][$design]??null;
                 if($fields===null||!is_array($values))throw new PortalError(422,'Los colores del diseño no son válidos.');
                 foreach($values as $field=>$color)if(!in_array($field,$fields,true)||!is_string($color)||!preg_match('/^#[0-9a-f]{6}$/i',$color))throw new PortalError(422,'Cada color del diseño debe tener el formato #RRGGBB.');
             }
