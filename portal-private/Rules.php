@@ -2,6 +2,24 @@
 declare(strict_types=1);
 final class PortalRules
 {
+    /** Defensa en el servidor para el HTML guardado: el navegador ya sanea, pero un cliente modificado no pasa por ese filtro. */
+    public static function scrub(mixed $value): mixed
+    {
+        if(is_array($value)){foreach($value as $k=>$v)$value[$k]=self::scrub($v);return $value;}
+        if(!is_string($value)||!str_contains($value,'<'))return $value;
+        $value=preg_replace('#<(script|style|iframe|frame|frameset|object|embed|applet|svg|math|form|base|meta|link|template|noscript)\b[^>]*>.*?</\1\s*>#isu','',$value)??'';
+        $value=preg_replace('#</?(script|style|iframe|frame|frameset|object|embed|applet|svg|math|form|input|button|textarea|select|base|meta|link|template|noscript)\b[^>]*>#iu','',$value)??'';
+        $value=preg_replace_callback('#<([a-z][a-z0-9]*)([\s/][^>]*)>#iu',function($m){
+            $attrs=preg_replace('#[\s/]+on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)#iu','',$m[2])??'';
+            $attrs=preg_replace('#[\s/]+(srcdoc|formaction|xlink:href)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)#iu','',$attrs)??'';
+            $attrs=preg_replace_callback('#([\s/]+(?:href|src|action|style|background|poster))\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]*)#iu',function($a){
+                $v=html_entity_decode(trim($a[2],'"\''),ENT_QUOTES|ENT_HTML5,'UTF-8');$v=preg_replace('/[\x00-\x20]+/u','',$v)??'';
+                return preg_match('/(javascript|vbscript|livescript):|data:(?!image\/(png|jpe?g|webp|gif);)|expression\(/iu',$v)?'':$a[0];
+            },$attrs)??'';
+            return '<'.$m[1].$attrs.'>';
+        },$value)??'';
+        return $value;
+    }
     public static function normal(string $value): string
     {$value=strtr($value,['Á'=>'A','É'=>'E','Í'=>'I','Ó'=>'O','Ú'=>'U','Ñ'=>'N','á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ñ'=>'n','ü'=>'u']);return strtolower(trim(preg_replace('/\s+/u',' ',$value)));}
     public static function safeLink(mixed $value,bool $internal=true): bool
@@ -30,6 +48,7 @@ final class PortalRules
     public static function apply(array $old,array &$new,array $user): void
     {
         self::settings($old,$new);
+        foreach($new['noticias']??[] as $news)if(is_array($news)&&!($news['deleted']??false)&&self::changed($old['noticias']??[],$news)&&!empty($news['video'])&&(!is_string($news['video'])||!preg_match('#^https://[^\s<>"]+$#iD',$news['video'])))throw new PortalError(422,'El video de la noticia debe ser un enlace https (YouTube o Vimeo).');
         foreach($new['slides'] as $slide)if(!($slide['deleted']??false)&&self::changed($old['slides'],$slide)){
             if(!self::safeLink($slide['enlace']??''))throw new PortalError(422,'El enlace del carrusel debe ser una ruta interna, ext:id o una URL http/https válida.');
             if(!empty($slide['boton'])&&empty($slide['enlace']))throw new PortalError(422,'Indica el enlace del botón del carrusel.');

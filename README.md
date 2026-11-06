@@ -7,16 +7,23 @@ Archivos para publicar en Hostinger:
 
 El archivo `portal-private/config.php` (datos de la base de datos y clave de instalación) **no se guarda en GitHub**: el repositorio es público. Se crea a partir de `portal-private/config.example.php`.
 
+## Requisitos del hosting
+
+- **PHP 8.1 o superior** con las extensiones `pdo_mysql`, `fileinfo`, `openssl`, `zlib`, `json` y `session` (Hostinger las trae activas). `mbstring` es recomendable.
+- **MariaDB 10.4+ o MySQL 8** (en hPanel, «MySQL» es MariaDB). **Una base de datos por sitio:** las tablas usan el prefijo fijo `pisco_`.
+- El sitio debe estar en la **raíz de un dominio o subdominio** (no en una subcarpeta).
+- Carpetas con permiso de escritura: `portal-private/` (bloqueo de instalación, `backups/` y la configuración SMTP guardada desde la intranet) y `public_html/assets/cache/`.
+
 ## Instalación nueva
 
 1. **Base de datos:** en hPanel › *Bases de datos › Bases de datos MySQL*, crea una base y un usuario con su contraseña. Anota los tres datos.
 2. **Descarga el código:** en GitHub, *Code › Download ZIP*.
-3. **Sube y extrae:** con el *Administrador de archivos*, sube el ZIP a la carpeta del dominio (la que contiene `public_html`) y extráelo. GitHub mete todo en una carpeta `flv-main/`; mueve `portal-private/` y `public_html/` desde ahí a la carpeta del dominio y reemplaza el `public_html` vacío.
+3. **Sube y extrae:** con el *Administrador de archivos*, sube el ZIP a la carpeta del dominio (la que contiene `public_html`) y extráelo. GitHub mete todo en una carpeta `v2_flv-main/`; mueve `portal-private/` y `public_html/` desde ahí a la carpeta del dominio y reemplaza el `public_html` vacío.
 4. **Configura:** copia `portal-private/config.example.php` como `portal-private/config.php` y completa:
    - `db_name`, `db_user` y `db_password`;
    - `install_key`: una clave privada aleatoria de 32 caracteres o más. Guárdala.
 5. **Instala:** abre `https://tu-dominio/install.php`, escribe la `install_key` y crea la cuenta del administrador principal.
-6. **Borra** `public_html/install.php`. Después de instalar ya no sirve; si lo vuelves a abrir responde "La aplicación ya está instalada".
+6. **Borra** `public_html/install.php`. Después de instalar ya no sirve: si lo vuelves a abrir responde «El portal ya está instalado» (código 410). Mientras el portal no esté instalado, la portada muestra un aviso que indica abrir `/install.php`.
 7. **Permisos:** `public_html/assets/cache/` debe tener permisos **755**.
 8. **Comprueba:**
    - Abre el sitio y entra a la intranet con la cuenta creada.
@@ -30,7 +37,7 @@ El archivo `portal-private/config.php` (datos de la base de datos y clave de ins
 
 ## Actualizar una instalación existente
 
-Sube `portal-private/` y `public_html/` encima de las carpetas actuales y acepta **sobrescribir**. **No borres las carpetas antes:** así se conservan `config.php`, `backups/` e `install.lock`. Después, borra `public_html/install.php`.
+Sube `portal-private/` y `public_html/` encima de las carpetas actuales y acepta **sobrescribir**. **No borres las carpetas antes:** así se conservan `config.php`, `backups/` y la configuración SMTP guardada (`.smtp-settings.json`). Después, borra `public_html/install.php`.
 
 La base de datos se actualiza sola la primera vez que se abre el sitio con la versión nueva (por ejemplo, crea la cola de correo `pisco_mail`); no se pierden datos ni cuentas.
 
@@ -49,6 +56,20 @@ La base de datos se actualiza sola la primera vez que se abre el sitio con la ve
 - **Accesos rápidos:** la instalación nueva incluye *Plataforma Virtual* (https://flv.iapp.pe) y *Correo Institucional* (Google Workspace, https://mail.google.com/a/iestpflv.edu.pe). Subir los archivos no cambia los datos ya guardados: en una instalación existente, agrega *Correo institucional* (identificador `correo`) en *Enlaces y servicios* y luego los dos accesos (`ext:aula` y `ext:correo`) en *Portada › Bloques, accesos y cifras*.
 
 El sistema es una copia del portal de Nasca (`ranyuo/claudenasca`, commit `bf8264c`) adaptada con la información pública de https://iestpflv.edu.pe/, consultada el 30 de octubre de 2026. Las imágenes y los documentos se sirven desde `public_html/assets/flv/`, no desde la web original.
+
+## Usar este sistema para otro instituto
+
+El código es el mismo para todos los institutos; lo propio de cada uno está en la base de datos (editable desde la intranet) y en el contenido inicial.
+
+1. **Contenido inicial:** `portal-private/data/portal.json` es el de FLV (personal, noticias, TUPA, enlaces, colores). Reemplázalo por el del nuevo instituto antes de instalar, o instala y edita todo desde la intranet. Las imágenes y los PDF de `public_html/assets/flv/` son de FLV: no los publiques en otro sitio (algunos PDF contienen datos de postulantes); deja solo `sin-foto.jpg` y los archivos del nuevo instituto.
+2. **Base de datos propia** y `config.php` propio, con una `install_key` nueva (no copies `portal-private/` de otro sitio: la configuración SMTP guardada está cifrada con esa clave e incluye la cuenta del otro instituto). Opcionalmente, la ruta del archivo de configuración se puede indicar con la variable de entorno `PORTAL_CONFIG_FILE`.
+3. Instala como se indica arriba y completa en la intranet:
+   - *Configuración*: nombre, nombre corto, sigla del logo, logo, dirección, **distrito y región** (se usan en el pie de la intranet, en los títulos emitidos y en los datos para buscadores), teléfono, correo, redes, SEO y WhatsApp.
+   - *Temas y apariencia*: diseño del portal, tema y colores.
+   - *Enlaces y servicios*: DRE o GRE de la región (el pie muestra el nombre del enlace `dre`), plataforma virtual, correo y biblioteca.
+   - *Mesa de partes*: prefijo de numeración, correo, teléfono, áreas y feriados regionales. Los feriados nacionales del Perú (incluida Semana Santa) se aplican solos cada año.
+   - *Libro de reclamaciones*, *Bolsa laboral* y el correo notificador (SMTP).
+4. Programa los trabajos cron de `mail-worker.php` (cada minuto) y `cron.php` (diario).
 
 ## Datos que debe confirmar la institución
 

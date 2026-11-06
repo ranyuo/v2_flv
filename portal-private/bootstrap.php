@@ -64,7 +64,7 @@ function portal_defer(callable $task): void
 
 function portal_run_task(callable $task): void
 {
-    try { $task(); } catch (Throwable $error) { error_log('Portal FLV: tarea diferida fallida: '.$error->getMessage()); }
+    try { $task(); } catch (Throwable $error) { error_log('Portal: tarea diferida fallida: '.$error->getMessage()); }
 }
 
 /** Cierra la respuesta HTTP y ejecuta las tareas diferidas sin que el usuario espere. */
@@ -101,13 +101,15 @@ function portal_error(Throwable $error, bool $json = false): never
     } else {
         $status = 503;
         $message = 'No se pudo completar la operación. Revisa la configuración de MySQL o consulta al responsable del sitio.';
-        error_log('Portal FLV: '.get_class($error).' ('.$error->getCode().')');
+        // Base vacía (instalación nueva): se indica el instalador en lugar del error genérico.
+        if ($error instanceof PDOException && $error->getCode() === '42S02') $message = 'El portal aún no está instalado. Abre /install.php para crear las tablas y la cuenta administradora.';
+        error_log('Portal: '.get_class($error).' ('.$error->getCode().')');
     }
     if ($json) {
         portal_json(['message' => $message], $status);
     }
     http_response_code($status);
     header('Content-Type: text/html; charset=utf-8');
-    echo '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Portal FLV</title><main style="font:18px/1.6 system-ui;max-width:700px;margin:60px auto;padding:24px"><h1>Portal FLV</h1><p>'.htmlspecialchars($message, ENT_QUOTES, 'UTF-8').'</p></main></html>';
+    echo '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Portal institucional</title><main style="font:18px/1.6 system-ui;max-width:700px;margin:60px auto;padding:24px"><h1>Portal institucional</h1><p>'.htmlspecialchars($message, ENT_QUOTES, 'UTF-8').'</p></main></html>';
     exit;
 }

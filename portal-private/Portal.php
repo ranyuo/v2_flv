@@ -106,10 +106,10 @@ final class PortalApp
         try{$version=(int)$this->connection->query('SELECT version FROM pisco_schema WHERE id=1')->fetchColumn();}
         catch(PDOException $error){if($error->getCode()==='42S02')return;throw $error;}
         if($version===0||$version>=PortalSchema::VERSION)return;
-        if((int)$this->connection->query("SELECT GET_LOCK('pisco_schema_upgrade',30)")->fetchColumn()!==1)throw new PortalError(503,'La actualización de la base está en curso. Inténtalo en unos segundos.');
+        $schemaLock=$this->connection->prepare('SELECT GET_LOCK(?,30)');$schemaLockName='portal-schema-'.substr(hash('sha256',(string)$this->connection->query('SELECT DATABASE()')->fetchColumn()),0,40);$schemaLock->execute([$schemaLockName]);if((int)$schemaLock->fetchColumn()!==1)throw new PortalError(503,'La actualización de la base está en curso. Inténtalo en unos segundos.');
         try{
             if((int)$this->connection->query('SELECT version FROM pisco_schema WHERE id=1')->fetchColumn()<PortalSchema::VERSION)PortalSchema::apply($this->connection);
-        }finally{$this->connection->query("SELECT RELEASE_LOCK('pisco_schema_upgrade')");}
+        }finally{$this->connection->prepare('SELECT RELEASE_LOCK(?)')->execute([$schemaLockName]);}
     }
 
     private static function publishedScholarship(array $row,array $data): bool
@@ -169,6 +169,14 @@ final class PortalApp
         $data['becarios']=array_values(array_map(function($r){$r=array_intersect_key($r,array_flip(['id','periodoId','apellidos','nombres','programaId','tipoId','motivo','estado','dni']));$r['dni']='****'.substr((string)($r['dni']??''),-4);return $r;},array_filter($scholarships,fn($r)=>!($r['deleted']??false)&&($r['estado']??'')==='Publicado')));
         return $data;
     }
+    private static function withoutStaffStamps(array $data): array
+    {
+        foreach($data as $k=>$v){
+            if(in_array($k,['creadoPor','modPor','publicadoPor','aprobadoPor','eliminadoPor','revisadoPor'],true)&&is_string($v)){unset($data[$k]);continue;}
+            if(is_array($v))$data[$k]=self::withoutStaffStamps($v);
+        }
+        return $data;
+    }
     public function bootstrap(): array
     {
         $state=$this->state();$full=json_decode($state['data'],true,flags:JSON_THROW_ON_ERROR);$user=$this->user();
@@ -177,6 +185,8 @@ final class PortalApp
         $data['usuarios']=$this->visibleAccounts($user,$full);
         // Visitantes: las imágenes incrustadas en base64 se sirven como archivos estáticos cacheables.
         if(!$user)$data=$this->externalizeImages($data);
+        // Visitantes: sin los usuarios del personal que crearon o editaron cada registro (son nombres de acceso).
+        if(!$user)$data=self::withoutStaffStamps($data);
         if($user&&$user['rol']==='admin'){$data['auditoria']=[...PortalAudit::rows($this),...PortalAudit::legacy($this,$full)];$data['academico']['bitacora']=array_map(fn($r)=>['id'=>$r['id'],'f'=>$r['fecha'],'u'=>$r['usuario'],'a'=>$r['accion'],'m'=>$r['entidad'],'d'=>$r['registro'].' · '.$r['detalle']],PortalAudit::rows($this));}
         return ['data'=>$data,'revision'=>(int)$state['revision'],'user'=>$user,'csrf'=>$_SESSION['csrf'],'numberingYear'=>(int)date('Y'),'schema_version'=>PortalSchema::VERSION,'roles'=>PortalPolicy::definitions()['roles']];
     }
@@ -252,14 +262,24 @@ final class PortalApp
         $statement->execute([json_encode($this->normalizeDates($data), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), $revision]);
     }
 
-    private function rate(string $action, int $limit, int $seconds): void
+    /** Feriados nacionales del Perú (fijos + Jueves y Viernes Santo); los locales se agregan en la configuración de Mesa de partes. */
+    public static function nationalHolidays(int $y): array
+    {
+        $a=$y%19;$b=intdiv($y,100);$c=$y%100;$d=intdiv($b,4);$e=$b%4;$f=intdiv($b+8,25);$g=intdiv($b-$f+1,3);$h=(19*$a+$b-$d-$g+15)%30;$i=intdiv($c,4);$k=$c%4;$l=(32+2*$e+2*$i-$h-$k)%7;$m=intdiv($a+11*$h+22*$l,451);
+        $easter=new DateTimeImmutable(sprintf('%04d-%02d-%02d',$y,intdiv($h+$l-7*$m+114,31),(($h+$l-7*$m+114)%31)+1));
+        $days=array_map(fn($md)=>"$y-$md",['01-01','05-01','06-07','06-29','07-23','07-28','07-29','08-06','08-30','10-08','11-01','12-08','12-09','12-25']);
+        $days[]=$easter->modify('-3 days')->format('Y-m-d');$days[]=$easter->modify('-2 days')->format('Y-m-d');sort($days);return $days;
+    }
+    /** Prefijo de las claves de intentos fallidos de una cuenta (permite desbloquearla desde Cuentas). */
+    public static function loginFailPrefix(string $username): string { return substr(hash('sha256','login-fail|'.strtolower(trim($username))),0,32); }
+    private function rate(string $action, int $limit, int $seconds, int $cost = 1): void
     {
         $window = intdiv(time(), $seconds) * $seconds;
         // Con sesión iniciada el límite es por usuario: en el instituto muchas personas comparten la misma IP pública.
         $who = isset($_SESSION['user_id']) ? 'u'.(int)$_SESSION['user_id'] : ($_SERVER['REMOTE_ADDR'] ?? 'local');
         $key = hash('sha256', $action.'|'.$who.'|'.$window);
-        $statement = $this->db()->prepare('INSERT INTO pisco_rate_limits (rate_key,hits,expires_at) VALUES (?,1,?) ON DUPLICATE KEY UPDATE hits = hits + 1');
-        $statement->execute([$key, $window + $seconds]);
+        $statement = $this->db()->prepare('INSERT INTO pisco_rate_limits (rate_key,hits,expires_at) VALUES (?,?,?) ON DUPLICATE KEY UPDATE hits = hits + ?');
+        $statement->execute([$key, max(1, $cost), $window + $seconds, max(1, $cost)]);
         $statement = $this->db()->prepare('SELECT hits FROM pisco_rate_limits WHERE rate_key = ?');
         $statement->execute([$key]);
         if ((int)$statement->fetchColumn() > $limit) {
@@ -279,17 +299,21 @@ final class PortalApp
         $db=$this->db();$db->beginTransaction();
         try{
             $stmt=$db->prepare('SELECT * FROM pisco_users WHERE username=? AND active=1 FOR UPDATE');$stmt->execute([$username]);$row=$stmt->fetch();
-            if($row&&!empty($row['locked_until'])&&strtotime($row['locked_until'])>time()){$db->commit();throw new PortalError(423,'Cuenta bloqueada por intentos fallidos. Espera cinco minutos o solicita el desbloqueo.');}
+            // El bloqueo es por cuenta e IP: un tercero que conoce el usuario no puede bloquear la cuenta para todos.
+            $failKey=self::loginFailPrefix($username).substr(hash('sha256','ip|'.($_SERVER['REMOTE_ADDR']??'local')),0,32);
+            $fails=$db->prepare('SELECT hits FROM pisco_rate_limits WHERE rate_key=? AND expires_at>?');$fails->execute([$failKey,time()]);
+            if((int)$fails->fetchColumn()>=5){$db->commit();throw new PortalError(423,'Cuenta bloqueada por intentos fallidos. Espera cinco minutos o solicita el desbloqueo.');}
             $ok=password_verify($input['password'],$row['password']??'$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.');
             if(isset($input['role'])&&(!is_string($input['role'])||$input['role']!==($row['role']??'')))$ok=false;
             if(!$row||!$ok){
-                if($row){$failures=(int)($row['login_failures']??0)+1;$locked=$failures>=5?date('Y-m-d H:i:s',time()+300):null;
-                    $db->prepare('UPDATE pisco_users SET login_failures=?,locked_until=? WHERE id=?')->execute([$locked?0:$failures,$locked,$row['id']]);}
+                $locked=null;if($row){$db->prepare('DELETE FROM pisco_rate_limits WHERE rate_key=? AND expires_at<=?')->execute([$failKey,time()]);
+                    $db->prepare('INSERT INTO pisco_rate_limits (rate_key,hits,expires_at) VALUES (?,1,?) ON DUPLICATE KEY UPDATE hits=hits+1')->execute([$failKey,time()+300]);
+                    $fails->execute([$failKey,time()]);$locked=(int)$fails->fetchColumn()>=5;}
                 PortalAudit::write($this,'Intento de acceso fallido','Cuentas',$username,['bloqueada'=>isset($locked)&&$locked?'sí':'no'],['usuario'=>'visitante','rol'=>'publico']);
                 $db->commit();throw new PortalError(422,'Usuario o contraseña incorrectos.');
             }
             if(password_needs_rehash($row['password'],PASSWORD_DEFAULT))$db->prepare('UPDATE pisco_users SET password=? WHERE id=?')->execute([password_hash($input['password'],PASSWORD_DEFAULT),$row['id']]);
-            $db->prepare('UPDATE pisco_users SET login_failures=0,locked_until=NULL,last_login=? WHERE id=?')->execute([date('Y-m-d H:i:s'),$row['id']]);$db->commit();
+            $db->prepare('UPDATE pisco_users SET login_failures=0,locked_until=NULL,last_login=? WHERE id=?')->execute([date('Y-m-d H:i:s'),$row['id']]);$db->prepare('DELETE FROM pisco_rate_limits WHERE rate_key=?')->execute([$failKey]);$db->commit();
         }catch(Throwable $e){if($db->inTransaction())$db->rollBack();throw $e;}
         PortalAudit::write($this,'Iniciar sesión','Cuentas',(string)$row['id'],[], $this->accountDto($row));
         session_regenerate_id(true);$_SESSION['user_id']=(int)$row['id'];$_SESSION['auth_version']=(int)($row['auth_version']??1);$_SESSION['csrf']=bin2hex(random_bytes(32));return ['ok'=>true];
@@ -317,7 +341,7 @@ final class PortalApp
             $visible=PortalPolicy::project($previous,$user,$this->publicData($previous));$visible['usuarios']=$this->visibleAccounts($user,$previous);
             $incoming=isset($input['patch'])?PortalPatch::apply($visible,$input['patch']):$input['data'];
             $data=PortalPolicy::apply($previous,$visible,$incoming,$user);
-            PortalRules::structure($data);
+            PortalRules::structure($data);$data=PortalRules::scrub($data);
             $ops=$input['accounts']??[];if(!is_array($ops)||count($ops)>100)throw new PortalError(422,'Operaciones de cuentas no válidas.');
             foreach($ops as $operation){if(!is_array($operation))throw new PortalError(422,'Cuenta no válida.');$this->accountOperation($operation);}
             $aliases=[];$data=PortalFiles::persist($this,$data,$aliases,0,$previous);
@@ -389,6 +413,8 @@ final class PortalApp
         $file=$_FILES['file']??null;
         if(!is_array($file)||($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK||!is_uploaded_file($file['tmp_name']))throw new PortalError(422,'No se pudo recibir el archivo. Revisa los límites de tamaño de PHP.');
         if((int)$file['size']>40*1024*1024)throw new PortalError(413,'Máximo 40 MB por archivo.');
+        // Sin sesión: tope por IP de archivos y de megas por hora, para que nadie llene el almacenamiento del hosting.
+        if(!$this->user()){$this->rate('uploads-anon',20,3600);$this->rate('uploads-anon-mb',150,3600,(int)ceil(((int)$file['size'])/1048576));}
         return ['file'=>PortalFiles::store($this,$file['name'],file_get_contents($file['tmp_name']))];
     }
     public function registerCompany(array $input): array
@@ -396,6 +422,7 @@ final class PortalApp
         $this->rate('company-registration',5,300);
         if(($input['declaration']??false)!==true)throw new PortalError(422,'Debes aceptar la declaración de registro y el tratamiento de datos.');
         $r=self::validate($input,['ruc'=>'required|string|max:11','nom'=>'required|string|max:200','sector'=>'required|string|max:100','ubic'=>'required|string|max:200','dir'=>'required|string|max:300','contacto'=>'required|string|max:150','cargoC'=>'required|string|max:150','correo'=>'required|email|max:254','tel'=>'required|string|max:30','web'=>'nullable|string|max:300','password'=>'required|string|min:12|max:72']);
+        foreach($r as $key=>$value)if(is_string($value)&&$key!=='password'&&preg_match('/[<>]/',$value))throw new PortalError(422,'Los datos de la empresa no pueden contener los caracteres < o >.');
         if(!preg_match('/^(10|15|17|20)[0-9]{9}$/',$r['ruc']))throw new PortalError(422,'RUC no válido.');
         $weights=[5,4,3,2,7,6,5,4,3,2];$sum=0;foreach($weights as $i=>$w)$sum+=(int)$r['ruc'][$i]*$w;$digit=11-$sum%11;if($digit===10)$digit=0;if($digit===11)$digit=1;
         if($digit!==(int)$r['ruc'][10])throw new PortalError(422,'El dígito verificador del RUC no es válido.');
@@ -553,7 +580,7 @@ final class PortalApp
                 do { $record['cargoCod'] = strtoupper(bin2hex(random_bytes(8))); }
                 while (PortalPolicy::find($data['expedientes'], 'cargoCod', $record['cargoCod']) !== null);
                 $received = new DateTimeImmutable();
-                $business = fn ($date) => (int)$date->format('N') < 6 && !in_array($date->format('Y-m-d'), $cfg['feriados'] ?? [], true);
+                $business = fn ($date) => (int)$date->format('N') < 6 && !in_array($date->format('Y-m-d'), $cfg['feriados'] ?? [], true) && !in_array($date->format('Y-m-d'), self::nationalHolidays((int)$date->format('Y')), true);
                 $inHours = $business($received) && $received->format('H:i') >= $cfg['horaIni'] && $received->format('H:i') <= $cfg['horaFin'];
                 if (!$inHours) {
                     if (!$business($received) || $received->format('H:i') > $cfg['horaFin']) {
@@ -603,13 +630,13 @@ final class PortalApp
         }
         if ($type === 'certificados' && in_array($input['mode']??'', ['dni','nombre'],true)) {
             $this->submissionProof('certificados',$input);
-            $nameMode=$input['mode']==='nombre';$query=PortalRules::normal($input['reference']);
+            $nameMode=$input['mode']==='nombre';$query=PortalRules::normal($input['reference']);if($nameMode)$this->rate('consulta-nombre',15,600);
             if($nameMode&&strlen($query)<3)throw new PortalError(422,'Ingresa al menos tres caracteres del nombre.');
             $matches=[];
             foreach($data['certificados']??[] as $r){
                 if($r['deleted']??false)continue;$name=PortalRules::normal($r['nombres']??'');
                 $hit=$nameMode ? count(array_filter(explode(' ',$query),fn($token)=>$token!==''&&!str_contains($name,$token)))===0 : ($r['dni']??'')===$input['reference'];
-                if($hit){$matches[]=AcademicDocuments::publicRecord($r);if(count($matches)>=100)break;}
+                if($hit){$pub=AcademicDocuments::publicRecord($r);if($nameMode&&isset($pub['dni']))$pub['dni']='****'.substr((string)$pub['dni'],-4);$matches[]=$pub;if(count($matches)>=($nameMode?30:100))break;}
             }
             return ['records'=>$matches];
         }
@@ -643,7 +670,7 @@ final class PortalApp
         $date = new DateTimeImmutable();
         while ($days > 0) {
             $date = $date->modify('+1 day');
-            if ((int)$date->format('N') < 6 && !in_array($date->format('Y-m-d'), $data['config']['mpv']['feriados'] ?? [], true)) $days--;
+            if ((int)$date->format('N') < 6 && !in_array($date->format('Y-m-d'), $data['config']['mpv']['feriados'] ?? [], true) && !in_array($date->format('Y-m-d'), self::nationalHolidays((int)$date->format('Y')), true)) $days--;
         }
         return $date;
     }

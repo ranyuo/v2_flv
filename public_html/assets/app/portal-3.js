@@ -9,7 +9,10 @@ const MPV_TIPOS = ['Solicitud', 'Oficio', 'Carta', 'Informe', 'Memorando', 'Recu
 const MPV_PLAZOS = { 'Solicitud': 10, 'Oficio': 7, 'Carta': 7, 'Informe': 7, 'Memorando': 5, 'Recurso administrativo': 30, 'Reclamo': 15, 'Queja': 3, 'Denuncia': 30, 'Declaración jurada': 5, 'FUT (Formulario Único de Trámite)': 10, 'Expediente administrativo': 30, 'Otros': 10 };
 const MPV_FORMATOS = [['pdf', 'PDF'], ['doc', 'DOC'], ['docx', 'DOCX'], ['xls', 'XLS'], ['xlsx', 'XLSX'], ['jpg', 'JPG'], ['jpeg', 'JPEG'], ['png', 'PNG']];
 const MIME_OK = { pdf: ['application/pdf'], doc: ['application/msword'], docx: ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'], xls: ['application/vnd.ms-excel'], xlsx: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'], jpg: ['image/jpeg'], jpeg: ['image/jpeg'], png: ['image/png'] };
-const FERIADOS_2026 = ['2026-01-01', '2026-04-02', '2026-04-03', '2026-05-01', '2026-06-07', '2026-06-29', '2026-07-23', '2026-07-28', '2026-07-29', '2026-08-06', '2026-08-30', '2026-10-08', '2026-11-01', '2026-12-08', '2026-12-09', '2026-12-25'];
+/* Feriados nacionales del Perú (fijos + Jueves y Viernes Santo) para cualquier año; los de la institución o región se agregan en la configuración. */
+const feriadosPeru = y => { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1;
+  const p = n => String(n).padStart(2, '0'), easter = new Date(Date.UTC(y, mo - 1, da)), off = n => { const x = new Date(easter); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  return ['01-01', '05-01', '06-07', '06-29', '07-23', '07-28', '07-29', '08-06', '08-30', '10-08', '11-01', '12-08', '12-09', '12-25'].map(x => y + '-' + x).concat([off(-3), off(-2)]).sort(); };
 const LR_DEF = { responsable: 'Responsable de Administración', cargo: 'Jefa de Área de Administración', correo: '', plazoReclamo: 15, plazoQueja: 15, alerta: 3, areaInicial: 'ADM',
   flujo: 'El reclamo o queja se registra en el Libro de Reclamaciones Virtual y se notifica al responsable institucional. El responsable lo deriva al área competente, que lo atiende y propone la respuesta. El responsable remite la respuesta al usuario por correo electrónico dentro del plazo. Todo el recorrido queda en el historial.' };
 const BOLSA_DEF = { responsable: 'Unidad de Bienestar y Empleabilidad', jefe: 'Jefe(a) de la Unidad de Bienestar y Empleabilidad', correo: '',
@@ -19,7 +22,7 @@ function pzEnsure() {
   if (!DB || !DB.config) return;
   const c = DB.config; c.contadores = c.contadores || {};
   ['LR', 'EXP', 'MPV', 'DOC', 'RCL'].forEach(k => { c.contadores[k] = c.contadores[k] || {}; });
-  c.mpv = Object.assign({ horaIni: '08:00', horaFin: '15:40', dias: 'Lunes a viernes', maxMB: 40, maxArchivos: 5, tipos: MPV_TIPOS.slice(), formatos: MPV_FORMATOS.map(f => f[0]), feriados: FERIADOS_2026.slice(), plazos: Object.assign({}, MPV_PLAZOS), correo: 'mesadepartes@iestpflv.edu.pe', telefono: '056-480160', prefijo: 'MPV-IESTPFLV' }, c.mpv || {});
+  c.mpv = Object.assign({ horaIni: '08:00', horaFin: '15:40', dias: 'Lunes a viernes', maxMB: 40, maxArchivos: 5, tipos: MPV_TIPOS.slice(), formatos: MPV_FORMATOS.map(f => f[0]), feriados: [], plazos: Object.assign({}, MPV_PLAZOS), correo: 'mesadepartes@iestpflv.edu.pe', telefono: '056-480160', prefijo: 'MPV-IESTPFLV' }, c.mpv || {});
   c.lr = Object.assign({}, LR_DEF, c.lr || {});
   c.bolsa = Object.assign({}, BOLSA_DEF, c.bolsa || {});
   Object.assign(EXP_PLAZOS, c.mpv.plazos);
@@ -27,7 +30,7 @@ function pzEnsure() {
   if (!LR_STATES.includes('Derivado')) LR_STATES.splice(1, 0, 'Derivado');
   /* Compatibilidad de enlaces de instalaciones anteriores; el contenido institucional se importa por separado. */
   if (!c.enlacesV2 && Array.isArray(DB.enlaces)) { const E = id => DB.enlaces.find(x => x.id === id);
-    const set = (id, url) => { const e = E(id); if (e && (!e.url || /ica\.bibliotecalatina|www\.dreica\.gob\.pe\/?$/.test(e.url))) Object.assign(e, { url, estado: 'Activo', verificado: '2026-10-23' }); };
+    const set = (id, url) => { const e = E(id); if (e && e.url && /ica\.bibliotecalatina|www\.dreica\.gob\.pe\/?$/.test(e.url)) Object.assign(e, { url, estado: 'Activo', verificado: '2026-10-23' }); };
     set('biblioteca', ''); set('aula', ''); set('dre', 'https://dreica.gob.pe/ica'); c.enlacesV2 = true; }
 }
 window.pzEnsure = pzEnsure;
@@ -44,7 +47,7 @@ window.pzMail = (para, asunto, cuerpo) => { if (para) mailOut(para, asunto, cuer
 const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const hm = s => { const [h, m] = String(s || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
 const fmt12 = s => { const [h, m] = String(s).split(':').map(Number); const ap = h >= 12 ? 'p.m.' : 'a.m.'; const hh = h % 12 || 12; return `${pad(hh)}:${pad(m || 0)} ${ap}`; };
-const isHabil = d => ![0, 6].includes(d.getDay()) && !(mpvCfg().feriados || []).includes(ymd(d));
+const isHabil = d => ![0, 6].includes(d.getDay()) && !(mpvCfg().feriados || []).includes(ymd(d)) && !feriadosPeru(d.getFullYear()).includes(ymd(d));
 const horarioTxt = () => { const c = mpvCfg(); return `${c.dias} de ${fmt12(c.horaIni)} a ${fmt12(c.horaFin)}`; };
 /* Regla institucional: dentro del horario se recibe en el acto; antes de la hora de inicio, ese mismo día a la hora de inicio;
    después del cierre, en sábado, domingo o feriado, el siguiente día hábil a la hora de inicio. */
@@ -267,7 +270,7 @@ function bindMpv(q0) {
       portalSubmissionStatus('Guardando el trámite y preparando tu cargo.');await portalSubmitExpediente(x,pending.key);portalSubmissionStatus('Trámite registrado. Ya puedes descargar tu cargo.');
       const numero=x.numero,numDocumento=x.numDocumento;
       pending=null;
-      f.reset();
+      f.reset(); renewCaptcha(f);
       const m = modal({ title: 'Documento registrado', size: 'lg', body: `<div class="notice ok">Tu documento fue <b>recibido por la Mesa de Partes Virtual</b>.</div>
         <div class="pz-codes"><div><span>N.º de expediente</span><b class="mono">${esc(numero)}</b></div><div><span>N.º de documento</span><b class="mono">${esc(numDocumento)}</b></div><div><span>Código de verificación</span><b class="mono">${esc(x.cargoCod || '—')}</b></div></div>
         <dl class="kv"><dt>Fecha y hora de presentación</dt><dd>${fdate(x.fecha, true)}</dd><dt>Fecha y hora de recepción</dt><dd>${fdate(x.fechaRecepcion, true)}${x.enHorario ? '' : ' <span class="badge warn">Fuera de horario: siguiente día hábil</span>'}</dd><dt>Área de destino</dt><dd>${esc(areaName(x.areaDestino))}</dd><dt>Plazo referencial</dt><dd>${c.plazos[x.tipoTramite] || 10} días hábiles</dd></dl>
@@ -425,7 +428,7 @@ function mpvConfigAdm() {
       <div class="field full"><span class="lbl">Formatos permitidos</span><div style="display:flex;gap:14px;flex-wrap:wrap">${MPV_FORMATOS.map(([k, l]) => `<label class="check"><input type="checkbox" name="fmt" value="${k}" ${c.formatos.includes(k) ? 'checked' : ''}> ${l}</label>`).join('')}</div></div>
       <div class="field"><label for="mc-t">Tipos de documento (uno por línea)</label><textarea id="mc-t" name="tipos" rows="13">${esc(c.tipos.join('\n'))}</textarea></div>
       <div class="field"><label for="mc-p">Plazo de atención por tipo (días hábiles, “Tipo = días”)</label><textarea id="mc-p" name="plazos" rows="13">${esc(c.tipos.map(t => `${t} = ${c.plazos[t] || 10}`).join('\n'))}</textarea></div>
-      <div class="field full"><label for="mc-h">Feriados y días no laborables (AAAA-MM-DD, uno por línea)</label><textarea id="mc-h" name="feriados" rows="5">${esc(c.feriados.join('\n'))}</textarea><div class="hint">Los documentos presentados en estas fechas se consideran recibidos el siguiente día hábil.</div></div>
+      <div class="field full"><label for="mc-h">Feriados regionales y días no laborables de la institución (AAAA-MM-DD, uno por línea). Los feriados nacionales se aplican solos cada año.</label><textarea id="mc-h" name="feriados" rows="5">${esc(c.feriados.join('\n'))}</textarea><div class="hint">Los documentos presentados en estas fechas se consideran recibidos el siguiente día hábil.</div></div>
       <div class="full" style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span class="note">Numeración: <b class="mono">${esc(c.prefijo)}-${year}-${pad(next, c.digitos||6)}</b> (siguiente) · <b class="mono">DOC-${yearNow()}-${pad((DB.config.contadores.DOC[String(yearNow())] || 0) + 1, 6)}</b></span>${canEdit ? '<button class="btn">Guardar configuración</button>' : '<span class="note">Solo el administrador puede modificar esta configuración.</span>'}</div>
     </div></div></form>`;
   return { html, after: () => { const f = $('[data-mpvcfg]'); const preview=()=>{f.querySelector('[data-number-preview]').textContent=f.prefijo.value+'-'+year+'-'+String(f.siguiente.value).padStart(Math.max(1,Math.min(9,+f.digitos.value||6)),'0');};for(const name of ['prefijo','digitos','siguiente'])f.elements[name].addEventListener('input',preview);preview(); f.onsubmit = e => { e.preventDefault(); if (!canEdit) return;
@@ -532,7 +535,7 @@ function bindLr2(q0) {
         asunto: clamp(v.descripcion.trim().replace(/\s+/g, ' '), 80), descripcion: v.descripcion.trim(), pedido: v.pedido.trim(), adjunto: adj, estado: 'Recibido', plazoDias, vence: diasHabiles(fecha, plazoDias).due.toISOString(), responsable: { nombre: c.responsable, cargo: c.cargo, correo: c.correo }, area: '',
         historial: [{ fecha, usuario: 'portal', estado: 'Recibido', nota: `Registro desde el Libro de Reclamaciones Virtual. Responsable: ${c.responsable} (${c.cargo}).` }], notas: [], respuesta: '', notifInst: 'Pendiente', notifUser: 'Pendiente', anulado: false };
       pending.record=r;}await portalSubmitService('reclamos',r,pending.key);portalSubmissionStatus('Reclamo registrado. Ya puedes descargar tu constancia.');pending=null;const codigo=r.codigo,fecha=r.fecha,plazoDias=r.plazoDias;
-      f.reset();
+      f.reset(); renewCaptcha(f);
       const m = modal({ title: `${v.tipo} ${v.tipo === 'Queja' ? 'registrada' : 'registrado'}`, body: `<div class="notice ok">Tu ${esc(v.tipo.toLowerCase())} fue registrado correctamente el ${fdate(fecha, true)}.</div><p>Tu código de seguimiento es:</p><div class="code-box">${codigo}</div><p>Código de verificación: <b class="mono">${esc(r.cargoCod || 'Pendiente de actualización')}</b></p><dl class="kv" style="margin-top:12px"><dt>Responsable</dt><dd>${esc(c.responsable)} · ${esc(c.cargo)}</dd><dt>Plazo de respuesta</dt><dd>${plazoDias} días hábiles (hasta el ${fdate(r.vence)})</dd></dl><p>Puedes descargar tu constancia. Correo de contacto: <b>${esc(r.correo)}</b>. Guarda tu código para consultar el estado.</p>`, foot: `<button class="btn sec" data-print>${S16('print')} Descargar constancia (PDF)</button><button class="btn" data-ok>Aceptar</button>` });
       $('[data-ok]', m.el).onclick = m.close; $('[data-print]', m.el).onclick = () => lrPdf(r, 'constancia');
     } catch (err) {const message=err.message||'No se pudo confirmar el registro. Conserva los datos y reintenta el mismo envío.';toast(message,'err');portalSubmissionStatus(message);}
@@ -671,7 +674,7 @@ CUSTOM['ix-bolsa'] = (parts, q) => {
   return bolsaPanel();
 };
 function bolsaPanel() {
-  const D = XD(); const hoy = new Date().toISOString().slice(0, 10);
+  const D = XD(); const hoy = ymd(new Date());
   const est = D.estudiantes.filter(e => e.estado === 'Regular').length, egr = D.estudiantes.filter(e => ['Egresado', 'Titulado'].includes(e.estado)).length;
   const empA = D.empresas.filter(e => e.validada).length, empP = D.empresas.filter(e => empEstado(e) === 'Pendiente').length;
   const conv = D.ofertas.filter(o => o.estado === 'Publicada' && o.limite >= hoy).length;
@@ -703,8 +706,8 @@ function bolsaEmpresas() {
     if(!canWriteAcademic('bolsa'))return toast('Tu perfil dispone de consulta de empresas.', 'warn');
     const me = currentUser(); const u = coll('usuarios').find(x => x.vin === 'emp:' + e.id);
     let motivo = '';
-    if (!ok) { motivo = await promptBox(`Motivo ${empEstado(e) === 'Aprobada' ? 'de la suspensión' : 'del rechazo'} de ${e.nom} (se enviará a la empresa):`, { title: 'Rechazar empresa', ok: 'Confirmar', textarea: true }); if (motivo == null) return; if (motivo.trim().length < 5) return toast('Indique el motivo.', 'err'); }
-    e.validada = ok; e.estadoVal = ok ? 'Aprobada' : 'Rechazada'; e.motivoRech = ok ? '' : motivo.trim(); e.valPor = me.usuario; e.fechaVal = new Date().toISOString().slice(0, 10);
+    if (!ok) { motivo = await promptBox(`Motivo ${empEstado(e) === 'Aprobada' ? 'de la suspensión' : 'del rechazo'} de ${esc(e.nom)} (se enviará a la empresa):`, { title: 'Rechazar empresa', ok: 'Confirmar', textarea: true }); if (motivo == null) return; if (motivo.trim().length < 5) return toast('Indique el motivo.', 'err'); }
+    e.validada = ok; e.estadoVal = ok ? 'Aprobada' : 'Rechazada'; e.motivoRech = ok ? '' : motivo.trim(); e.valPor = me.usuario; e.fechaVal = ymd(new Date());
     if (u && u.ixId) IX.notifyTo('u:' + u.ixId, ok ? 'Tu empresa fue aprobada: ya puedes publicar convocatorias' : 'Tu solicitud de empresa no fue aprobada: ' + e.motivoRech, 'bolsa');
     mailOut(e.correo, ok ? `Cuenta de empresa aprobada - Bolsa laboral ${inst().nombre}` : `Cuenta de empresa no aprobada - Bolsa laboral ${inst().nombre}`, ok ? `La empresa ${e.nom} fue validada por la ${c.responsable}. Ingrese con su RUC y contraseña.` : `Motivo: ${e.motivoRech}`);
     IX.logAct(ok ? 'Aprobar empresa' : 'Rechazar empresa', 'Bolsa laboral', `${e.nom} (RUC ${e.ruc})${ok ? '' : ' · ' + e.motivoRech}`); if(!IX.persist())return false; toast(ok ? `${e.nom} aprobada. Aviso registrado en la cola de correo.` : `${e.nom} rechazada. Aviso registrado en la cola de correo.`, 'ok'); route();
@@ -812,7 +815,7 @@ function bolsaEgresados(q) {
 
 /* ---------- Bolsa laboral pública: acceso por tipo de usuario + registro de empresas ---------- */
 R('servicios/bolsa-laboral', (path, q) => {
-  const D = IX && IX.db ? XD() : null; const hoy = new Date().toISOString().slice(0, 10);
+  const D = IX && IX.db ? XD() : null; const hoy = ymd(new Date());
   const nOf = D ? D.ofertas.filter(o => o.estado === 'Publicada' && o.limite >= hoy).length : 0, nEmp = D ? D.empresas.filter(e => e.validada).length : 0;
   const body = `<div class="pz-bl"><div class="pz-bl-l"><span class="pz-bl-ic">${ic('briefcase')}</span><h1>Bolsa <span>Laboral</span></h1><b>${esc(inst().nombre)}</b><p>Plataforma institucional para conectar estudiantes y egresados con empresas y oportunidades laborales.</p><div class="pz-bl-3"><span>${ic('grad')}Estudiantes</span><span>${ic('award')}Egresados</span><span>${ic('building')}Empresas</span></div><div class="pz-bl-n"><span><b>${nOf}</b> convocatorias vigentes</span><span><b>${nEmp}</b> empresas aliadas</span></div></div>
     <form class="pz-bl-r" data-blog novalidate><span class="pz-bl-ic sm">${ic('user')}</span><h2>Iniciar sesión</h2><small>Bolsa Laboral · ${esc(inst().nombreCorto)}</small>

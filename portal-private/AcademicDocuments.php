@@ -46,7 +46,7 @@ final class AcademicDocuments
                     $p=PortalPolicy::find($data['programas'],'id',array_search($student['prog'],$a['progMap']??[],true))??[];
                     $m=$key==='certs'?(PortalPolicy::find($a['modulos'],'id',$r['mod'])??[]):[];
                     $record+=['grupo'=>$group,'programa'=>$program['nombre']??'','institucion'=>$r['institucion']??$data['config']['inst']['nombre'],
-                        'pais'=>$r['pais']??'Perú','region'=>$r['region']??'Ica','nivel'=>$r['nivel']??'Superior tecnológico',
+                        'pais'=>$r['pais']??'Perú','region'=>$r['region']??($data['config']['inst']['region']??''),'nivel'=>$r['nivel']??'Superior tecnológico',
                         'modulo'=>$m['nombre']??'','horas'=>$r['horasDoc']??$m['horasTotal']??'','tipoHoras'=>$r['tipoHoras']??$m['tipoHoras']??'Académicas','resolucion'=>$r['resol']??''];
                     if($key==='titulos')$record['tipo']=!empty($r['denominacion'])?$r['denominacion']:($p['titulo']??'Título de Profesional Técnico');
                 }

@@ -123,7 +123,7 @@ const PALETAS = [
   ["ica","Verde institucional","Verde institucional y dorado.",{bg:"#f3f6f5",side:"#0b2b28",brand:"#0f5e57",acc:"#c08424"}],
   ["nazca","Granate Nazca","Granate y ocre, inspirado en la región Ica.",{bg:"#f7f4f3",side:"#2a0b10",brand:"#8a1c2b",acc:"#c8902e"}],
   ["pacifico","Azul Pacífico","Azul marino y turquesa, sobrio y formal.",{bg:"#f3f5f9",side:"#0b1a33",brand:"#1d4f9c",acc:"#0ea5b7"}],
-  ["web","Web institucional","Colores del portal institucional iestpflv.edu.pe. Puede ajustarlos abajo.",null]];
+  ["web","Web institucional","Colores del portal web institucional. Puede ajustarlos abajo.",null]];
 const WEB_DEF = {brand:"#ff4f01", acc:"#ff8c01", side:"#131d3b"};
 const HEX = /^#[0-9a-f]{6}$/i;
 const inkFor = hex => { const n = parseInt(hex.slice(1),16), c = [n>>16&255, n>>8&255, n&255].map(v => { v /= 255; return v <= .03928 ? v/12.92 : Math.pow((v+.055)/1.055, 2.4) }); return (.2126*c[0] + .7152*c[1] + .0722*c[2]) > .45 ? "#111111" : "#ffffff" };
@@ -418,7 +418,7 @@ const unb64u = t => { const bin = atob(t.replace(/-/g,"+").replace(/_/g,"/")); r
 /* el QR abre la verificación pública con el código y los datos del documento */
 const verifyText = d => HOST.verifyUrl(d.cod);
 function paperHead(){ const C = docCfg(), col = docColor(), band = C.estilo !== "blanco", im = (x, cls) => `<img class="plogo ${cls}" src="${esc(x.src)}" alt="">`;
-  return `<div class="ph ${band ? "band" : ""}" style="--doc:${col}">${C.logoIzq ? im(C.logoIzq,"l") : ""}<div class="pht"><b>${esc(DB.cfg.nombre)}</b><small>${esc(docSub())}</small></div>${C.logoDer ? im(C.logoDer,"r") : band ? "" : `<div class="seal" style="box-shadow:inset 0 0 0 2px ${col};color:${col};background:none">IESTP<br>FLV</div>`}</div>${C.lema ? `<p class="lema">“${esc(C.lema)}”</p>` : ""}` }
+  return `<div class="ph ${band ? "band" : ""}" style="--doc:${col}">${C.logoIzq ? im(C.logoIzq,"l") : ""}<div class="pht"><b>${esc(DB.cfg.nombre)}</b><small>${esc(docSub())}</small></div>${C.logoDer ? im(C.logoDer,"r") : band ? "" : `<div class="seal" style="box-shadow:inset 0 0 0 2px ${col};color:${col};background:none">IESTP<br>${esc((HOST.inst && HOST.inst().logoSigla) || DB.cfg.siglas || "")}</div>`}</div>${C.lema ? `<p class="lema">“${esc(C.lema)}”</p>` : ""}` }
 function paperSign(){ const C = docCfg(); return C.firma ? `<div class="pfirma">${C.firmaImg ? `<img src="${esc(C.firmaImg.src)}" alt="Firma">` : ""}<span></span><b>${esc(docFirmaNom())}</b><small>${esc(C.firmaCargo || "")}</small></div>` : "" }
 function paperFoot(d){ const pie = docCfg().pie; return paperSign() + `<div class="pf"><div><b style="color:var(--paper-ink)">Código de verificación: <span class="mono">${d.cod}</span></b><br>Emitido el ${fd(d.fecha)} · Verifique su autenticidad en el portal institucional, opción “Verificar documento”.</div><div class="qr" aria-label="Código QR de verificación">${qrSvg(verifyText(d))}</div></div>${pie ? `<p class="ppie">${esc(pie)}</p>` : ""}` }
 function pdfVerify(doc, d, y){
@@ -577,7 +577,7 @@ ENT.titulos = { col:"titulos", one:"título", title:"Registro institucional de t
     {k:"denominacion",l:"Denominación del grado o título",w:1,hint:"Si se deja vacío se utiliza el título del programa."},
     {k:"nivel",l:"Nivel educativo",def:"Superior tecnológico"},
     {k:"pais",l:"País",def:"Perú"},
-    {k:"region",l:"Región",def:"Ica"},
+    {k:"region",l:"Región",def:()=>HOST.inst?(HOST.inst().region||""):""},
     {k:"resol",l:"Resolución directoral",req:true,w:1,ph:"R.D. N.º 000-2026-INSTITUTO"}],
   check:(v,row) => { const er = {}; if(v.culm && v.tit && v.tit < v.culm) er.tit = "Debe ser posterior a la fecha de culminación."; if(v.estadoDoc!=="Anulado"&&DB.titulos.some(t => t.estadoDoc!=="Anulado"&&t.est === v.est && (!row || t.id !== row.id))) er.est = "Este egresado ya tiene un título registrado."; return er },
   after:r => { const e = est(r.est); if(e.id) e.estado = "Titulado"; const u = HOST.users().find(x => x.vin === "est:"+r.est); if(u) notify("u:"+u.id,"Tu título fue registrado en la intranet institucional","titulos") },
@@ -687,7 +687,7 @@ const plazoRec = r => { const due = addBiz(r.fecha, DB.cfg.plazoReclamo); return
 function renderLogin(){
   const demo = HOST.users().filter(u => u.estado === "Activo");
   return `<div class="login">
-  <section class="lb"><div class="brandbox" style="border:0;padding:0">${sealHtml()}<div><b>${esc(DB.cfg.siglas)}</b><small>Ministerio de Educación · DRE Ica · La Tinguiña</small></div></div>
+  <section class="lb"><div class="brandbox" style="border:0;padding:0">${sealHtml()}<div><b>${esc(DB.cfg.siglas)}</b><small>${esc(["Ministerio de Educación", ...(HOST.inst ? [HOST.inst().region ? "DRE " + HOST.inst().region : "", HOST.inst().distrito || ""] : [])].filter(Boolean).join(" · "))}</small></div></div>
     <h1>Intranet Institucional</h1>
     <p>Plataforma de gestión académica y administrativa: horarios, certificaciones, títulos, trámite documentario, libro de reclamaciones, bolsa laboral y portafolio docente en un solo sistema.</p>
     <div class="mods">${MODS.filter(m => m[2]).map(m => `<div>${ICO[m[0]] || ""}<span>${m[2]}</span>${m[1]}</div>`).join("")}</div>
@@ -1665,7 +1665,7 @@ function docsConfig(){
     <div class="fld"><label for="dc_fc">Cargo</label><input id="dc_fc" name="firmaCargo" value="${esc(C.firmaCargo)}" maxlength="80" ${ro}></div></div>
     ${logo("firmaImg","Imagen de la firma (opcional)","Una firma escaneada sobre fondo blanco o transparente.")}</section>
   <section class="panel"><div><h2>Pie de página</h2></div>
-    <div class="fld"><label for="dc_pie">Texto del pie</label><input id="dc_pie" name="pie" value="${esc(C.pie)}" placeholder="Ej.: Av. Las Nieves 140, La Tinguiña, Ica · mesadepartes@iestpflv.edu.pe" maxlength="160" ${ro}></div></section>
+    <div class="fld"><label for="dc_pie">Texto del pie</label><input id="dc_pie" name="pie" value="${esc(C.pie)}" placeholder="Ej.: Av. Principal 123, distrito, región · mesadepartes@instituto.edu.pe" maxlength="160" ${ro}></div></section>
   ${ed ? `<div class="btnrow"><button class="btn" type="submit">Guardar textos</button><button type="button" class="btn sec" data-act="docSample">Descargar PDF de ejemplo</button><button type="button" class="btn ghost" data-act="docReset">Restablecer</button></div>` : ""}
   </form></div>
   <aside class="ap-preview"><section class="panel"><h2>Vista previa</h2><div class="paper" style="padding:22px;--pp:22px;--pp2:22px;gap:10px;font-size:.86rem">${paperHead()}<h2 style="font-size:1rem">REPORTE DE VALIDACIÓN DE TÍTULO</h2><dl class="dl"><dt>Titulado(a)</dt><dd>Nombre de ejemplo</dd><dt>Programa</dt><dd>${esc((DB.programas[0]||{}).nombre || "Programa de estudios")}</dd></dl>${paperFoot(sample)}</div></section></aside></div>`;

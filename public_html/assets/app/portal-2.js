@@ -28,7 +28,10 @@ const num = n => Number(n || 0).toLocaleString('es-PE');
 const slugify = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 90);
 const normTitle = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 const maskDni = d => d ? '****' + String(d).slice(-4) : '';
-const stripTags = h => { const d = document.createElement('div'); d.innerHTML = h || ''; return d.textContent || ''; };
+// Documento inerte: un elemento del documento real cargaría imágenes y ejecutaría atributos como onerror.
+// Fecha local AAAA-MM-DD (toISOString usa UTC: en Perú cambiaría de día a las 19:00).
+const localYmd = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const stripTags = h => new DOMParser().parseFromString(String(h || ''), 'text/html').body.textContent || '';
 const clamp = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 const yearNow = () => new Date().getFullYear();
 
@@ -552,6 +555,8 @@ const CAPTCHA_IO = 'IntersectionObserver' in window ? new IntersectionObserver(e
 function watchCaptchas() { $$('.captcha[data-purpose]:not([data-watch])').forEach(b => { b.dataset.watch = '1'; if (CAPTCHA_IO) CAPTCHA_IO.observe(b); else loadCaptcha(b); }); }
 new MutationObserver(() => watchCaptchas()).observe(document.documentElement, { childList: true, subtree: true });
 document.addEventListener('focusin', e => { const f = e.target.closest && e.target.closest('form'); if (f) loadCaptcha($('.captcha[data-purpose]', f)); }, true);
+// Tras un envío correcto la verificación queda usada: se pide una nueva para el siguiente envío sin recargar.
+function renewCaptcha(form) { const box = form && $('.captcha[data-purpose]', form); if (!box) return; delete box.dataset.challenge; delete box.dataset.loading; const inp = $('input:not([type=hidden])', box); if (inp) inp.value = ''; loadCaptcha(box); }
 function checkCaptcha(form, id) {
   if (form.website && form.website.value) return 'Envío bloqueado por el filtro anti-spam.';
   const box = $('#' + id, form);if(!box)return 'Recarga la página para verificar el formulario.';if(!box.dataset.challenge){loadCaptcha(box);return 'La verificación anti-spam aún se está cargando. Espera un momento e inténtalo de nuevo.';}
@@ -671,6 +676,7 @@ const publicTeacherVisible = p => !p?.cv?.autoriza?.revocado && (p?.cv?.autoriza
 const progs = () => sortO(P('programas').filter(isPub));
 const progById = id => P('programas').find(p => p.id === id);
 const safePortalLink = (value, internal = true) => { if (typeof value !== 'string' || !value) return false; if (internal && value.startsWith('#/')) return true; try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol); } catch { return false; } };
+const dreLabel = () => ((coll('enlaces').find(x => x.id === 'dre') || {}).nombre || 'DRE');
 const ext = id => { const e = coll('enlaces').find(x => x.id === id); return e && !e.deleted && e.estado === 'Activo' && safePortalLink(e.url, false) ? e.url : ''; };
 const linkAttrs = href => /^https?:/.test(href) ? `href="${esc(href)}" target="_blank" rel="noopener noreferrer"` : `href="${esc(href)}"`;
 const resolveLink = l => typeof l === 'string' && l.startsWith('ext:') ? ext(l.slice(4)) : safePortalLink(l) ? l : '';
@@ -741,7 +747,7 @@ function footerHTML() {
     <nav class="f-col" aria-label="Enlaces del pie de página"><h2>Enlaces rápidos</h2><ul class="f-links">${links.map(([h, l]) => `<li><a href="${h}">${l}</a></li>`).join('')}</ul></nav>
     <section class="f-col"><h2>Contacto</h2><ul class="f-contact">${ci('map', 'Dirección', `<span>${esc(i.direccion)}</span>`)}${ci('phone', 'Teléfono' + (i.telefonoNota ? ' · ' + esc(i.telefonoNota) : ''), `<a href="tel:${esc(i.telefono.replace(/\D/g, ''))}">${esc(i.telefono)}</a>`)}${ci('mail', 'Correo', `<a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a>`)}${ci('clock', 'Horario de atención', `<span>${esc(i.horario)}</span>`)}</ul></section>
     <section class="f-col">
-      <h2>Enlaces institucionales</h2><div class="f-logos"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a><a ${linkAttrs(ext('dre') || 'https://www.dreica.gob.pe/')}>DRE Ica</a><a href="#/servicios/libro-de-reclamaciones" class="f-lr">${ic('book')} Libro de Reclamaciones</a></div></section>
+      <h2>Enlaces institucionales</h2><div class="f-logos"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a>${ext('dre') ? `<a ${linkAttrs(ext('dre'))}>${esc(dreLabel())}</a>` : ''}<a href="#/servicios/libro-de-reclamaciones" class="f-lr">${ic('book')} Libro de Reclamaciones</a></div></section>
   </div>
   <div class="f-bottom"><div class="wrap"><span>© ${yearNow()} ${esc(i.nombre)}. Todos los derechos reservados.</span><nav aria-label="Enlaces legales"><a href="#/terminos-de-uso">Términos de uso</a><a href="#/politica-de-privacidad">Política de privacidad</a><a href="#/mapa-del-sitio">Mapa del sitio</a><a href="#/admin">Intranet</a></nav></div></div></footer>
   ${DB.config.whatsapp.activo && DB.config.whatsapp.numero ? `<a class="wa" href="https://wa.me/${esc(DB.config.whatsapp.numero)}?text=${encodeURIComponent(DB.config.whatsapp.mensaje)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${bic('whatsapp')}</a>` : ''}`;
@@ -778,7 +784,7 @@ function uniFooter() {
     <section><h2>Atención al público</h2><ul class="u-fc"><li>${ic('phone')}<span>Teléfono${i.telefonoNota ? ' (' + esc(i.telefonoNota) + ')' : ''}: <a href="tel:${esc(tel)}">${esc(i.telefono)}</a></span></li><li>${ic('mail')}<span>Correo: <a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a></span></li><li>${ic('map')}<span>${esc(i.direccion)}</span></li><li>${ic('clock')}<span>${esc(i.horario)}</span></li></ul>
       </section>
     <section>${soc ? `<div class="social u-soc" aria-label="Redes sociales">${soc}</div>` : ''}<nav aria-label="Enlaces legales"><ul class="u-legal">${legal.map(([h, l]) => `<li><a href="${h}">${l}</a></li>`).join('')}</ul></nav>
-      <div class="u-flogos"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a><a ${linkAttrs(ext('dre') || 'https://www.dreica.gob.pe/')}>DRE Ica</a></div>
+      <div class="u-flogos"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a>${ext('dre') ? `<a ${linkAttrs(ext('dre'))}>${esc(dreLabel())}</a>` : ''}</div>
       <a href="#/servicios/libro-de-reclamaciones" class="u-lr">${ic('book')}<span>Libro de<br>Reclamaciones</span></a></section>
   </div><div class="u-fb">© ${yearNow()} ${esc(i.nombre)}${i.ruc ? ' · RUC ' + esc(i.ruc) : ''} · Todos los derechos reservados.</div></footer>
   ${DB.config.whatsapp.activo && DB.config.whatsapp.numero ? `<a class="wa" href="https://wa.me/${esc(DB.config.whatsapp.numero)}?text=${encodeURIComponent(DB.config.whatsapp.mensaje)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${bic('whatsapp')}</a>` : ''}`;
@@ -840,7 +846,7 @@ function impFooter() {
       <h2>Atención al público</h2><ul class="i-inline i-at"><li><a href="tel:${esc(String(i.telefono || '').replace(/\D/g, ''))}">${esc(i.telefono)}</a></li><li><a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a></li><li>${esc(i.direccion)}</li></ul></section>
     ${col('Institucional', [['#/nosotros/presentacion', 'Nosotros'], ['#/transparencia/documentos-gestion', 'Portal de transparencia'], ['#/politica-de-privacidad', 'Política de privacidad'], ['#/terminos-de-uso', 'Términos de uso']])}
     ${col('Comunidad', [['#/eventos', 'Eventos'], ['#/noticias', 'Noticias'], ['#/contacto', 'Contáctanos'], ['#/admin', 'Intranet']])}
-    <section><h2>Enlaces institucionales</h2><div class="i-flogos"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a><a ${linkAttrs(ext('dre') || 'https://www.dreica.gob.pe/')}>DRE Ica</a></div></section>
+    <section><h2>Enlaces institucionales</h2><div class="i-flogos"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a>${ext('dre') ? `<a ${linkAttrs(ext('dre'))}>${esc(dreLabel())}</a>` : ''}</div></section>
   </div>
   <div class="wrap i-f2"><a href="#/servicios/libro-de-reclamaciones" class="i-lr">${ic('book')}<span>Libro de<br>Reclamaciones</span></a>${soc ? `<div class="social i-soc" aria-label="Redes sociales">${soc}</div>` : ''}</div>
   <div class="i-fb">${esc(i.nombre)}${i.ruc ? ' – RUC N.° ' + esc(i.ruc) : ''} · © ${yearNow()}</div></footer>
@@ -853,7 +859,7 @@ function impBlocks(base, h, i) {
   const loc = P('locales').filter(isPub).find(l => l.foto);
   const dirJ = P('jerarquica').find(j => j.esDirector) || {}; const dir = persona(dirJ.personaId);
   return Object.assign({}, base, {
-    slider: () => { const html = base.slider(); return html ? html.replace(/<\/section>\s*$/, `<a class="i-down" href="#i-start" aria-label="Ir al contenido de la portada"><span aria-hidden="true"></span></a></section><span id="i-start"></span>`) : ''; },
+    slider: () => { const html = base.slider(); return html ? html.replace(/<\/section>\s*$/, `<a class="i-down" href="#i-start" onclick="event.preventDefault();var t=document.getElementById('i-start');if(t)t.scrollIntoView({behavior:'smooth'})" aria-label="Ir al contenido de la portada"><span aria-hidden="true"></span></a></section><span id="i-start"></span>`) : ''; },
     programas: () => ps.length ? `<section class="i-sec i-prog"><div class="wrap"><h2 class="i-ttl i-gold">Programas de estudio</h2><div class="i-tiles">${ps.map(p => `<a class="i-tile" href="#/programas/${esc(p.slug)}"><img src="${img(p.imagen)}" alt="" loading="lazy"><b>${esc(p.nombre)}</b></a>`).join('')}</div><p class="i-c"><a class="i-btn" href="#/programas">${ic('search')} Ver programas de estudio</a></p></div></section>` : '',
     bienvenida: () => { const pr = page('presentacion'); if (!pr || !isPub(pr)) return '';
       return `<section class="i-sec"><div class="wrap i-duo"><a class="i-pa" href="#/nosotros/presentacion"><img src="${img(dir && dir.foto || pics[0])}" alt="" loading="lazy"><span><i aria-hidden="true">+</i>Mensaje de la<br>Dirección General</span></a><a class="i-pb" href="#/nosotros/campus-e-informes"><img src="${img(loc && loc.foto || pics[1] || pics[0])}" alt="" loading="lazy"><span><b>Nuestro campus</b><small>${esc(i.direccion)}</small></span></a></div></section>`; },
@@ -900,7 +906,7 @@ function horFooter() {
       <a href="#/servicios/libro-de-reclamaciones" class="h-lr">${ic('book')}<span>Libro de<br>Reclamaciones</span></a></div>
     <div>${grp('Programas de estudio', progs().map(p => ['#/programas/' + p.slug, p.nombre]))}${grp('Institucional', [['#/nosotros/presentacion', 'Nosotros'], ['#/noticias', 'Noticias'], ['#/eventos', 'Eventos'], ['#/contacto', 'Contáctanos'], ['#/admin', 'Intranet']])}</div>
     <div class="h-fc"><h3>Sede institucional</h3><p>${ic('map')}<span>${esc(i.direccion)}</span></p><p>${ic('phone')}<a href="tel:${esc(tel)}">${esc(i.telefono)}</a></p><p>${ic('mail')}<a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a></p><p>${ic('clock')}<span>${esc(i.horario)}</span></p>
-      <h3>Enlaces institucionales</h3><p class="h-fl"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a><a ${linkAttrs(ext('dre') || 'https://www.dreica.gob.pe/')}>DRE Ica</a></p></div>
+      <h3>Enlaces institucionales</h3><p class="h-fl"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a>${ext('dre') ? `<a ${linkAttrs(ext('dre'))}>${esc(dreLabel())}</a>` : ''}</p></div>
   </div><div class="wrap h-fb"><a class="h-fbrand" href="#/"><small>Instituto de Educación Superior</small><strong>${esc(i.logoSigla || i.nombreCorto)}</strong></a><nav aria-label="Enlaces legales"><a href="#/politica-de-privacidad">Política de privacidad</a><a href="#/terminos-de-uso">Términos de uso</a><a href="#/transparencia/documentos-gestion">Transparencia</a></nav><div class="h-soc h-soc-s">${soc}</div></div>
   <div class="h-copy">© ${yearNow()} ${esc(i.nombre)}${i.ruc ? ' · RUC ' + esc(i.ruc) : ''}</div></footer>
   ${DB.config.whatsapp.activo && DB.config.whatsapp.numero ? `<a class="wa" href="https://wa.me/${esc(DB.config.whatsapp.numero)}?text=${encodeURIComponent(DB.config.whatsapp.mensaje)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${bic('whatsapp')}</a>` : ''}`;
@@ -963,7 +969,7 @@ function camFooter() {
   return `<footer class="site-footer k-foot"><div class="k-fl"><div class="wrap k-fg">${cols.map(c => `<ul>${c.map(([h, l]) => `<li><a href="${h}">${esc(l)}</a></li>`).join('')}</ul>`).join('')}</div></div>
     <div class="k-fb"><div class="wrap k-fg"><div>${soc ? `<div class="k-soc k-soc-b">${soc}</div>` : ''}<a href="#/servicios/libro-de-reclamaciones" class="k-lr">${ic('book')}<span>Libro de<br>Reclamaciones</span></a></div>
       <div><h2>Ubícanos</h2><p>${esc(i.direccion)}<br>Correo: <a href="mailto:${esc(i.correo)}">${esc(i.correo)}</a><br>Teléfono: <a href="tel:${esc(tel)}">${esc(i.telefono)}</a></p></div>
-      <div><h2>Horario de atención</h2><p>${esc(i.horario)}</p><p class="k-fx"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a><a ${linkAttrs(ext('dre') || 'https://www.dreica.gob.pe/')}>DRE Ica</a></p></div></div></div>
+      <div><h2>Horario de atención</h2><p>${esc(i.horario)}</p><p class="k-fx"><a ${linkAttrs(ext('minedu') || 'https://www.gob.pe/minedu')}>MINEDU</a>${ext('dre') ? `<a ${linkAttrs(ext('dre'))}>${esc(dreLabel())}</a>` : ''}</p></div></div></div>
     <div class="k-copy"><div class="wrap"><span>© ${yearNow()} ${esc(i.nombre)} | Todos los derechos reservados.</span>${i.ruc ? `<span>RUC: ${esc(i.ruc)}</span>` : ''}</div></div></footer>
   ${DB.config.whatsapp.activo && DB.config.whatsapp.numero ? `<a class="wa" href="https://wa.me/${esc(DB.config.whatsapp.numero)}?text=${encodeURIComponent(DB.config.whatsapp.mensaje)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${bic('whatsapp')}</a>` : ''}`;
 }
@@ -1028,7 +1034,7 @@ function setSEO({ title, desc, crumbs = [], jsonld = [] }) {
   setMeta('meta[name="description"]', 'content', desc || s.descripcion);
   setMeta('meta[property="og:title"]', 'content', document.title);
   setMeta('meta[property="og:description"]', 'content', desc || s.descripcion);
-  const org = { '@context': 'https://schema.org', '@type': 'EducationalOrganization', name: inst().nombre, alternateName: inst().nombreCorto, foundingDate: inst().fechaCreacion, email: inst().correo, telephone: inst().telefono, address: { '@type': 'PostalAddress', streetAddress: inst().direccion, addressLocality: 'La Tinguiña, Ica', addressRegion: 'Ica', addressCountry: 'PE' }, sameAs: Object.values(DB.config.redes).filter(Boolean) };
+  const org = { '@context': 'https://schema.org', '@type': 'EducationalOrganization', name: inst().nombre, alternateName: inst().nombreCorto, foundingDate: inst().fechaCreacion, email: inst().correo, telephone: inst().telefono, address: { '@type': 'PostalAddress', streetAddress: inst().direccion, addressLocality: [inst().distrito, inst().region].filter(Boolean).join(', ') || undefined, addressRegion: inst().region || undefined, addressCountry: 'PE' }, sameAs: Object.values(DB.config.redes).filter(Boolean) };
   const bc = { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Inicio', item: location.origin + location.pathname + '#/' }].concat(crumbs.map((c, i) => ({ '@type': 'ListItem', position: i + 2, name: c[0], item: c[1] ? location.origin + location.pathname + c[1] : undefined }))) };
   let el = document.getElementById('jsonld'); if (!el) { el = document.createElement('script'); el.type = 'application/ld+json'; el.id = 'jsonld'; document.head.appendChild(el); }
   el.textContent = JSON.stringify([org, bc].concat(jsonld));
@@ -1268,7 +1274,7 @@ function bindContactForm() {
     const m = { id: uid(), fecha: nowISO(), nombres: v.nombres.trim(), documento: v.documento, correo: v.correo.trim(), telefono: v.telefono, asunto: v.asunto, programa: v.programa, mensaje: v.mensaje.trim(), estado: 'Nuevo', historial: [] };
     coll('mensajes').unshift(m); audit('Registro', 'Mensajes de contacto', m.asunto, 'Mensaje recibido desde el portal'); mailOut(DB.config.correoContacto, 'Nuevo mensaje de contacto: ' + m.asunto, m.mensaje);
     if (!saveDB()) return;
-    f.reset(); modal({ title: 'Mensaje enviado', size: 'sm', body: `<div class="notice ok">Tu mensaje fue registrado correctamente. El envío por correo está pendiente de habilitación.</div>` });
+    f.reset(); renewCaptcha(f); modal({ title: 'Mensaje enviado', size: 'sm', body: `<div class="notice ok">Tu mensaje fue registrado correctamente. El envío por correo está pendiente de habilitación.</div>` });
   };
 }
 function mailOut(para, asunto, cuerpo) {
@@ -1481,7 +1487,7 @@ function bindReclamo() {
     r.notifInst = mailOut(DB.config.correoReclamos, `[${codigo}] Nuevo ${v.tipo.toLowerCase()} registrado`, `${r.nombres} - ${r.asunto}: ${r.descripcion}`);
     r.notifUser = mailOut(r.correo, `Constancia de registro ${codigo}`, `Su ${v.tipo.toLowerCase()} fue registrado el ${fshort(fecha, true)} con el código ${codigo}.`);
     audit('Registro', 'Libro de reclamaciones', codigo, `${v.tipo} ${v.tipo === 'Queja' ? 'registrada' : 'registrado'} desde el portal. Notificación institucional: ${r.notifInst}`); saveDB();
-    f.reset(); $$('[data-c]', f).forEach(c => c.textContent = '0');
+    f.reset(); renewCaptcha(f); $$('[data-c]', f).forEach(c => c.textContent = '0');
     const m = modal({ title: 'Reclamación registrada', body: `<div class="notice ok">Tu ${esc(v.tipo.toLowerCase())} fue registrado correctamente el ${fdate(fecha, true)}.</div><p>Tu código de seguimiento es:</p><div class="code-box">${codigo}</div><p style="margin-top:12px">Puedes descargar tu constancia de recepción. El envío por correo está pendiente de habilitación. Guarda este código para consultar el estado de tu reclamación.</p>`, foot: `<button class="btn sec" data-print>${ic('print').replace('<svg', '<svg style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2"')} Descargar constancia</button><button class="btn" data-ok>Aceptar</button>` });
     $('[data-ok]', m.el).onclick = m.close;
     $('[data-print]', m.el).onclick = () => downloadBlob(makePdf('Constancia de registro - Libro de Reclamaciones', [`Codigo de seguimiento: ${codigo}`, `Fecha de registro: ${fshort(fecha, true)}`, `Tipo: ${r.tipo}`, `Reclamante: ${r.nombres}`, `Documento: ${r.tipoDoc} ${maskDni(r.numDoc)}`, `Asunto: ${r.asunto}`, '', 'Detalle:', r.descripcion, '', 'Pedido:', r.pedido], inst().nombre.toUpperCase()), `Constancia_${codigo}.pdf`);
@@ -1637,9 +1643,9 @@ R('noticias/:slug', (path, q, prm) => {
   if (!n) return notFound(path);
   const rel = pubNews().filter(x => x.id !== n.id && x.categoriaId === n.categoriaId).slice(0, 3);
   const fotos = newsFotos(n);
-  const url = location.protocol === 'file:' ? 'https://iestpflv.edu.pe/' + location.hash : location.href;
+  const url = location.href;
   const body = `<article><header><div class="meta" style="display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13.5px"><time datetime="${esc(n.fecha)}">${fdate(n.fecha, true)}</time><span class="badge">${esc(catName(n.categoriaId))}</span></div><h1>${esc(n.titulo)}</h1><p class="lead">${esc(n.resumen)}</p></header>
-   ${n.video ? `<div style="aspect-ratio:16/9;margin-bottom:16px"><iframe src="${esc(n.video)}" title="Video: ${esc(n.titulo)}" style="width:100%;height:100%;border:0;border-radius:10px" allowfullscreen loading="lazy"></iframe></div>` : `<figure class="figure"><button type="button" class="ngal-main" aria-label="Ampliar la foto"><img src="${img(n.imagen, 'ph:campus:4')}" alt="Imagen de la noticia: ${esc(n.titulo)}" data-fit="${newsImageFit(n)}" decoding="async"></button><figcaption>${esc(n.titulo)}${fotos.length > 1 ? ` · Foto <span data-gal-n>1</span> de ${fotos.length}` : ''}</figcaption></figure>`}
+   ${n.video ? `<div style="aspect-ratio:16/9;margin-bottom:16px"><iframe src="${esc(/^https:\/\//i.test(n.video) ? n.video : 'about:blank')}" title="Video: ${esc(n.titulo)}" style="width:100%;height:100%;border:0;border-radius:10px" allowfullscreen loading="lazy"></iframe></div>` : `<figure class="figure"><button type="button" class="ngal-main" aria-label="Ampliar la foto"><img src="${img(n.imagen, 'ph:campus:4')}" alt="Imagen de la noticia: ${esc(n.titulo)}" data-fit="${newsImageFit(n)}" decoding="async"></button><figcaption>${esc(n.titulo)}${fotos.length > 1 ? ` · Foto <span data-gal-n>1</span> de ${fotos.length}` : ''}</figcaption></figure>`}
    ${fotos.length > 1 ? `<div class="ngal" aria-label="Galería de fotos de la noticia">${fotos.map((f, i) => `<button type="button" class="ngal-t${!n.video && !i ? ' on' : ''}" data-gal-t="${i}" aria-label="Ver foto ${i + 1} de ${fotos.length}"><img src="${img(f)}" alt="" loading="lazy" decoding="async"></button>`).join('')}</div>` : ''}
    <div class="prose">${sanitize(n.contenido)}</div>
    ${(n.adjuntos || []).length ? `<h2>Archivos relacionados</h2><ul>${n.adjuntos.filter(a => a.doc || a.data || a.titulo || a.url).map((a, i) => { const d = a.doc || a; return `<li><a href="#" data-adj="${i}">${esc(a.titulo || d.original || d.nombre)}</a> <small>(${fsize(d.size)})</small></li>`; }).join('')}</ul>` : ''}
@@ -1677,7 +1683,7 @@ R('mapa-del-sitio', path => {
   return { html: shell(path, { title: 'Mapa del sitio', crumbs: [['Mapa del sitio']], banner: { title: 'Mapa del sitio' }, side: null, body }), after: () => $('[data-sm]').onclick = downloadSitemap };
 });
 function downloadSitemap() {
-  const base = 'https://iestpflv.edu.pe';
+  const base = location.origin;
   const urls = ['/', '/programas', '/admision', '/matricula', '/becas', '/noticias', '/eventos', '/contacto', '/preguntas-frecuentes', '/mapa-del-sitio', '/servicios/mesa-de-partes', '/servicios/bolsa-laboral', '/servicios/consulta-certificados', '/servicios/complementarios'].concat(['presentacion', 'resena-historica', 'mision-vision', 'organizacion', 'reconocimientos', 'plana-jerarquica', 'plana-docente', 'campus-e-informes'].map(s => '/nosotros/' + s)).concat(['documentos-gestion', 'inversiones', 'libro-de-reclamaciones', 'licenciamiento', 'tupa', 'estadisticas', 'convocatorias'].map(s => '/transparencia/' + s)).concat(progs().map(p => '/programas/' + p.slug)).concat(pubNews().map(n => '/noticias/' + n.slug));
   downloadText(`\x3c?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${base}${u}</loc></url>`).join('\n')}\n</urlset>`, 'sitemap.xml', 'application/xml');
 }
@@ -1823,10 +1829,10 @@ function revealOnScroll() {
 }
 function maybePopup() {
   const p = DB.config.popup; if (!p.activo || PREVIEW) return;
-  const today = new Date().toISOString().slice(0, 10); if ((p.inicio && today < p.inicio) || (p.fin && today > p.fin)) return;
+  const today = localYmd(); if ((p.inicio && today < p.inicio) || (p.fin && today > p.fin)) return;
   try { if (sessionStorage.getItem('popup_seen')) return; sessionStorage.setItem('popup_seen', '1'); } catch (e) { }
   if (p.modelo === 'promocional') return promoPopup(p);
-  const m = modal({ title: esc(p.titulo), size: 'sm', body: `${p.imagen ? `<img src="${img(p.imagen)}" alt="" style="border-radius:10px;margin-bottom:12px;aspect-ratio:16/10;object-fit:cover;width:100%">` : ''}<p>${esc(p.texto)}</p>`, foot: p.enlace ? `<a class="btn gold" ${linkAttrs(p.enlace)} data-go>${esc(p.boton || 'Ver más')}</a>` : '' });
+  const m = modal({ title: esc(p.titulo), size: 'sm', body: `${p.imagen ? `<img src="${img(p.imagen)}" alt="" style="border-radius:10px;margin-bottom:12px;aspect-ratio:16/10;object-fit:cover;width:100%">` : ''}<p>${esc(p.texto)}</p>`, foot: resolveLink(p.enlace) ? `<a class="btn gold" ${linkAttrs(resolveLink(p.enlace))} data-go>${esc(p.boton || 'Ver más')}</a>` : '' });
   const g = $('[data-go]', m.el); if (g) g.addEventListener('click', () => m.close());
 }
 
@@ -1841,7 +1847,7 @@ function promoHTML(p) {
     <div class="pp-top"><span class="pp-logo"><img src="${logoSrc()}" alt=""><b>${esc(i.logoSigla || i.nombreCorto)}</b></span>${p.etiqueta ? `<span class="pp-tag">${esc(p.etiqueta)}</span>` : ''}</div>
     <div class="pp-main">${p.antetitulo ? `<p class="pp-pre">${esc(p.antetitulo)}</p>` : ''}<h2 id="pp-t">${esc(p.titulo)}</h2>${p.texto ? `<p class="pp-txt" id="pp-d">${esc(p.texto)}</p>` : ''}</div>
     ${cs.length ? `<ol class="pp-cards pp-n${cs.length}">${cs.map((c, k) => `<li class="${k === cs.length - 1 && cs.length > 1 ? 'pp-last' : ''}">${c.t ? `<b>${esc(c.t)}</b>` : ''}${c.d ? `<span>${esc(c.d)}</span>` : ''}${k < cs.length - 1 ? '<i class="pp-arr" aria-hidden="true"></i>' : ''}</li>`).join('')}</ol>` : ''}
-    ${p.enlace ? `<p class="pp-cta"><a class="pp-btn" ${linkAttrs(p.enlace)} data-go>${esc(p.boton || 'Ver más')} <span aria-hidden="true">→</span></a></p>` : ''}
+    ${resolveLink(p.enlace) ? `<p class="pp-cta"><a class="pp-btn" ${linkAttrs(resolveLink(p.enlace))} data-go>${esc(p.boton || 'Ver más')} <span aria-hidden="true">→</span></a></p>` : ''}
   </div>`;
 }
 function promoPopup(p) {
@@ -2298,7 +2304,7 @@ SPECS.documentos = {
   beforeSave: w => { w.grupo = w.grupo || slugify(w.nombre); if (w.refModulo) w.archivo = null; },
   afterForm: (w, isNew, rerender, form) => { form.refModulo.onchange = rerender; },
   validate: w => { const dup = alive('documentos').find(d => d.id !== w.id && normTitle(d.nombre) === normTitle(w.nombre) && d.tipoId === w.tipoId && String(d.vigencia) === String(w.vigencia) && String(d.version) === String(w.version)); if (dup) return { version: 'Ya existe esta misma versión del documento (mismo nombre, tipo, vigencia y versión).' }; if (!w.refModulo && /reglamento de admision/.test(normTitle(w.nombre))) return { refModulo: 'El Reglamento de Admisión ya se administra en el módulo Admisión. Use la opción de referencia para no duplicar el archivo.' }; return {}; },
-  afterSave: w => { if (w.estado === 'Publicado') { w.fechaPub = w.fechaPub || new Date().toISOString().slice(0, 10); w.publicadoPor = currentUser().usuario; coll('documentos').forEach(d => { if (d.id !== w.id && d.grupo === w.grupo && d.estado === 'Publicado' && !d.deleted) { d.estado = 'Histórico'; stamp(d); audit('Paso a histórico', 'Documentos de gestión', d.nombre + ' v' + d.version, 'Por publicación de v' + w.version); } }); } },
+  afterSave: w => { if (w.estado === 'Publicado') { w.fechaPub = w.fechaPub || localYmd(); w.publicadoPor = currentUser().usuario; coll('documentos').forEach(d => { if (d.id !== w.id && d.grupo === w.grupo && d.estado === 'Publicado' && !d.deleted) { d.estado = 'Histórico'; stamp(d); audit('Paso a histórico', 'Documentos de gestión', d.nombre + ' v' + d.version, 'Por publicación de v' + w.version); } }); } },
   inUse: r => r.refModulo ? 'Este registro referencia un documento de otro módulo; no puede eliminarse definitivamente mientras exista la relación.' : '',
 };
 SPECS.tiposdoc = {
@@ -2475,7 +2481,7 @@ SPECS.enlaces = {
   sub: 'URL configurable de cada servicio externo. Un enlace inactivo o sin URL no se muestra en el portal (evita enlaces rotos).', filters: [{ n: 'grupo', l: 'Grupo', opts: linkGroupOptions }],
   cols: [{ l: 'Nombre', f: r => `<b>${esc(r.nombre)}</b>` }, { l: 'URL', f: r => r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(clamp(r.url, 45))}</a>` : '<span class="badge warn">Sin configurar</span>' }, { l: 'Grupo', f: r => esc(r.grupo) }, { l: 'Última verificación', f: r => r.verificado ? fshort(r.verificado + 'T12:00') + (Date.now() - new Date(r.verificado) > 31 * 864e5 ? ' <span class="badge warn">Revisar</span>' : '') : '—' }, { l: 'Estado', f: r => stBadge(r.estado) }],
   rowActs: r => r.url ? ib('chk', 'check', 'Marcar como verificado hoy') : '',
-  onAct: (a, r, rer) => { if (a === 'chk') { window.open(r.url, '_blank', 'noopener'); r.verificado = new Date().toISOString().slice(0, 10); audit('Verificación de enlace', 'Enlaces', r.nombre); saveDB(); rer(); } },
+  onAct: (a, r, rer) => { if (a === 'chk') { window.open(r.url, '_blank', 'noopener'); r.verificado = localYmd(); audit('Verificación de enlace', 'Enlaces', r.nombre); saveDB(); rer(); } },
   fields: [{ n: 'nombre', l: 'Nombre', req: true }, { n: 'grupo', l: 'Grupo', t: 'select', req: true, opts: linkGroupOptions }, { n: 'url', l: 'URL', t: 'url', full: true, pubReq: true }, { n: 'color', l: 'Color del logotipo', t: 'color' }, { n: 'verificado', l: 'Fecha de última verificación', t: 'date' }],
 };
 SPECS.servicios = {
@@ -2666,7 +2672,7 @@ CUSTOM.config = () => singletonForm({
     { n: 'nombre', l: 'Denominación oficial', req: true, full: true }, { n: 'nombreCorto', l: 'Nombre corto / siglas', req: true }, { n: 'logoSigla', l: 'Texto del logotipo generado', max: 10 },
     { n: 'slogan', l: 'Eslogan', full: true }, { n: 'lema', l: 'Lema de cabecera' }, { n: 'descripcion', l: 'Descripción institucional (pie de página)', t: 'textarea', full: true },
     { n: 'logo', l: 'Logotipo oficial (opcional, reemplaza al generado)', t: 'image', full: true },
-    { n: 'direccion', l: 'Dirección', req: true, full: true }, { n: 'telefono', l: 'Teléfono', req: true }, { n: 'telefonoNota', l: 'Detalle del teléfono' }, { n: 'correo', l: 'Correo institucional', t: 'email' }, { n: 'horario', l: 'Horario de atención', req: true }, { n: 'horarioSab', l: 'Horario de sábados' },
+    { n: 'direccion', l: 'Dirección', req: true, full: true }, { n: 'distrito', l: 'Distrito', max: 80 }, { n: 'region', l: 'Región (departamento)', max: 80, hint: 'Se usa en el pie de la intranet, en los títulos emitidos y en los datos para buscadores.' }, { n: 'telefono', l: 'Teléfono', req: true }, { n: 'telefonoNota', l: 'Detalle del teléfono' }, { n: 'correo', l: 'Correo institucional', t: 'email' }, { n: 'horario', l: 'Horario de atención', req: true }, { n: 'horarioSab', l: 'Horario de sábados' },
     { n: 'ruc', l: 'RUC' }, { n: 'codigoModular', l: 'Código modular' }, { n: 'fechaCreacion', l: 'Fecha de creación', t: 'date', req: true }, { n: 'normaCreacion', l: 'Norma de creación' },
     { n: 'lat', l: 'Latitud de la sede', t: 'number', step: 'any' }, { n: 'lng', l: 'Longitud de la sede', t: 'number', step: 'any' },
     { n: 'fb', l: 'Facebook', t: 'url' }, { n: 'yt', l: 'YouTube', t: 'url' }, { n: 'ig', l: 'Instagram', t: 'url' }, { n: 'tt', l: 'TikTok', t: 'url' },
@@ -2678,7 +2684,7 @@ CUSTOM.config = () => singletonForm({
   onSave: (w, er) => {
     if (w.waOn && !/^\d{9,13}$/.test(w.waNum || '')) er.waNum = 'Número no válido (9 a 13 dígitos).'; if (Object.keys(er).length) return;
     const C = DB.config; const oldName = C.inst.nombre, oldLogo = C.inst.logo; if (C.correoReclamos !== w.correoReclamos) audit('Cambio de parámetro protegido', 'Configuración', 'Correo del Libro de Reclamaciones', `${C.correoReclamos} → ${w.correoReclamos}`);
-    ['nombre', 'nombreCorto', 'logoSigla', 'slogan', 'lema', 'descripcion', 'logo', 'direccion', 'telefono', 'telefonoNota', 'correo', 'horario', 'horarioSab', 'ruc', 'codigoModular', 'fechaCreacion', 'normaCreacion', 'lat', 'lng'].forEach(k => C.inst[k] = w[k]);
+    ['nombre', 'nombreCorto', 'logoSigla', 'slogan', 'lema', 'descripcion', 'logo', 'direccion', 'telefono', 'telefonoNota', 'correo', 'horario', 'horarioSab', 'ruc', 'codigoModular', 'fechaCreacion', 'normaCreacion', 'lat', 'lng', 'distrito', 'region'].forEach(k => C.inst[k] = w[k]);
     if (oldLogo !== w.logo && DB.academico.cfg.docs?.logoIzq?.src === oldLogo) { const preview = document.querySelector('[data-img=logo] img'); DB.academico.cfg.docs.logoIzq = w.logo ? { src: w.logo, w: preview?.naturalWidth || 240, h: preview?.naturalHeight || 310 } : null; }
     C.redes = { ...C.redes, facebook: w.fb, youtube: w.yt, instagram: w.ig, tiktok: w.tt }; C.seo.titulo = w.seoTitulo === C.seo.titulo ? w.seoTitulo.replace(oldName, w.nombre) : w.seoTitulo; C.seo.descripcion = w.seoDesc; C.correoReclamos = w.correoReclamos; C.correoContacto = w.correoContacto;
     C.whatsapp = { numero: w.waNum, mensaje: w.waMsg, activo: w.waOn }; C.limites = { descripcion: +w.limDesc || 1500, pedido: +w.limPed || 1000 }; C.simularFalloCorreo = w.simFail; Object.keys(IMG_CACHE).forEach(k => delete IMG_CACHE[k]);
@@ -3207,6 +3213,7 @@ function ixWrap(inner) { const l = document.getElementById('ix-layer'); if (l) l
 const businessDaysLeft = (fromISO, days) => { const d = new Date(String(fromISO).slice(0, 10) + 'T12:00:00'); let k = 0; while (k < days) { d.setDate(d.getDate() + 1); if (![0, 6].includes(d.getDay())) k++; } const t = new Date(); t.setHours(12, 0, 0, 0); let n = 0; const s = t <= d ? 1 : -1; const c = new Date(t); while (c.toDateString() !== d.toDateString()) { c.setDate(c.getDate() + s); if (![0, 6].includes(c.getDay())) n += s; } return { due: d, left: n }; };
 const IXHOST = {
   loadAcad: () => DB.academico || null,
+  inst: () => (DB.config && DB.config.inst) || {},
   saveAcad: a => { DB.academico = a; return saveDB(); },
   openBackups: () => {location.href='/respaldos.php';},
   toast: m => toast(m),
@@ -3306,13 +3313,13 @@ function countVisit() {
   if (PREVIEW) return; DB.visitas = DB.visitas || {}; const d = new Date().toISOString().slice(0, 10);
   DB.visitas[d] = (DB.visitas[d] || 0) + 1;
 }
-let LAST_PATH = null;
+let LAST_PATH = null, LAST_PAGE = null;
 function route() {
   clearInterval(window.__sl);
   if (window.__publicReveal) { window.__publicReveal.disconnect(); window.__publicReveal = null; }
   const raw = location.hash.replace(/^#\/?/, ''); const [p, qs] = raw.split('?');
   const parts = (p || '').split('/').filter(Boolean); const q = new URLSearchParams(qs || '');
-  const app = document.getElementById('app'); const samePath = LAST_PATH === p; LAST_PATH = p;
+  const app = document.getElementById('app'); const samePath = LAST_PATH === p; LAST_PATH = p; const pageChanged = samePath && LAST_PAGE !== q.get('page'); LAST_PAGE = q.get('page');
   if (!samePath) { ADM.work = null; $$('.modal-bg').forEach(m => m.remove()); if (IX) IX.close(); }
   $$('.chart-tip').forEach(t => t.style.display = 'none');
   let out;
@@ -3327,6 +3334,7 @@ function route() {
   if (parts[0] !== 'admin') bindPublicChrome();
   if (out.after) try { out.after(); } catch (e) { console.error(e); }
   if (!samePath) { window.scrollTo(0, 0); const h = $('h1', app); if (h && document.activeElement === document.body) h.setAttribute('tabindex', '-1'); }
+  else if (pageChanged) { const top = $('h1', app) || app; top.scrollIntoView({ block: 'start' }); }
   if (!parts.length) maybePopup();
 }
 function seedVisits() {

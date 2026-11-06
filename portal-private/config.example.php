@@ -18,9 +18,9 @@ return [
         'host' => 'smtp.gmail.com',
         'port' => 587,
         'encryption' => 'tls', // STARTTLS; alternativa: 'ssl' con puerto 465.
-        'username' => 'notificaciones@proyectos.pe',
+        'username' => 'notificaciones@instituto.edu.pe', // Reemplaza por la cuenta de correo de la institución.
         'password' => getenv('PORTAL_SMTP_PASSWORD') ?: '',
-        'from_email' => 'notificaciones@proyectos.pe',
-        'from_name' => 'Notificaciones · IESTP FLV',
+        'from_email' => 'notificaciones@instituto.edu.pe',
+        'from_name' => 'Notificaciones · Nombre corto del instituto',
     ],
 ];
