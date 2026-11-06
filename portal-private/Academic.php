@@ -11,14 +11,16 @@ final class PortalAcademic
             foreach($a[$key] as &$row){if(!is_array($row))throw new PortalError(422,'Registro académico no válido.');$prior=PortalPolicy::find($o[$key]??[],'id',$row['id']??null);if(PortalPolicy::equal($prior,$row))continue;
                 if(!isset($row['id'])||filter_var($row['id'],FILTER_VALIDATE_INT)===false||(int)$row['id']<1)throw new PortalError(422,'Identificador académico no válido.');$row['id']=(int)$row['id'];
                 foreach(['prog','est','mod','emp'] as $field)if(array_key_exists($field,$row)&&$row[$field]!==''&&$row[$field]!==null){if(filter_var($row[$field],FILTER_VALIDATE_INT)===false)throw new PortalError(422,'Vínculo académico no válido.');$row[$field]=(int)$row[$field];}
+                // Se indica el registro: en una importación de cientos de filas el mensaje genérico no permite ubicarlo.
+                $label=$row['dni']??$row['cod']??$row['num']??$row['nom']??$row['nombre']??null;$where=' (registro '.(is_scalar($label)?preg_replace('/^(.{0,60}).*$/su','$1',(string)$label):'id '.$row['id']).')';
                 foreach($spec['fields'] as $f){$v=$row[$f['name']]??null;$empty=$v===null||$v===''||(is_array($v)&&$v===[]);
-                    if($f['required']&&$empty&&(!$prior||!empty($prior[$f['name']])))throw new PortalError(422,'Completa '.$key.'.'.$f['name'].'.');if($empty)continue;
-                    if($f['type']==='number'&&(!is_numeric($v)||($f['min']!==null&&$v<$f['min'])||($f['max']!==null&&$v>$f['max'])))throw new PortalError(422,'Número fuera del rango permitido en '.$key.'.'.$f['name'].'.');
-                    if($f['type']==='email'&&(!is_string($v)||!filter_var($v,FILTER_VALIDATE_EMAIL)))throw new PortalError(422,'Correo académico no válido.');
-                    if($f['type']==='date'){$date=is_string($v)?DateTimeImmutable::createFromFormat('!Y-m-d',$v):false;if(!$date||$date->format('Y-m-d')!==$v)throw new PortalError(422,'Fecha académica no válida.');}
+                    if($f['required']&&$empty&&(!$prior||!empty($prior[$f['name']])))throw new PortalError(422,'Completa '.$key.'.'.$f['name'].$where.'.');if($empty)continue;
+                    if($f['type']==='number'&&(!is_numeric($v)||($f['min']!==null&&$v<$f['min'])||($f['max']!==null&&$v>$f['max'])))throw new PortalError(422,'Número fuera del rango permitido en '.$key.'.'.$f['name'].$where.'.');
+                    if($f['type']==='email'&&(!is_string($v)||!filter_var($v,FILTER_VALIDATE_EMAIL)))throw new PortalError(422,'Correo académico no válido'.$where.': '.preg_replace('/^(.{0,80}).*$/su','$1',(string)$v).'.');
+                    if($f['type']==='date'){$date=is_string($v)?DateTimeImmutable::createFromFormat('!Y-m-d',$v):false;if(!$date||$date->format('Y-m-d')!==$v)throw new PortalError(422,'Fecha académica no válida'.$where.'.');}
                     if($f['type']==='multi'&&!is_array($v))throw new PortalError(422,'Selección múltiple no válida.');
                     if($f['type']==='time'&&(!is_string($v)||!preg_match('/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/',$v)))throw new PortalError(422,'Hora no válida.');
-                    if($f['unique'])foreach($a[$key] as $other)if(($other['id']??null)!==$row['id']&&isset($other[$f['name']])&&PortalRules::normal((string)$other[$f['name']])===PortalRules::normal((string)$v))throw new PortalError(422,'Valor duplicado en '.$key.'.'.$f['name'].'.');
+                    if($f['unique'])foreach($a[$key] as $other)if(($other['id']??null)!==$row['id']&&isset($other[$f['name']])&&PortalRules::normal((string)$other[$f['name']])===PortalRules::normal((string)$v))throw new PortalError(422,'Valor duplicado en '.$key.'.'.$f['name'].$where.'.');
                 }
                 $refs=match($key){'uds','ambientes','modulos','estudiantes'=>['prog'=>'programas'],'certs'=>['est'=>'estudiantes','mod'=>'modulos'],'notas','titulos'=>['est'=>'estudiantes'],'ofertas'=>['emp'=>'empresas','prog'=>'programas'],default=>[]};
                 foreach($refs as $field=>$target)if(!empty($row[$field])&&!PortalPolicy::find($a[$target],'id',$row[$field]))throw new PortalError(422,'La referencia académica '.$target.' no existe.');
