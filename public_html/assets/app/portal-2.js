@@ -229,8 +229,21 @@ const CAM_PRESETS = [
   ['Vino académico', { primario: '#8a1538', oscuro: '#1c1c1c', pie: '#463238' }],
   ['Verde y grafito', { primario: '#0f7a5c', oscuro: '#1b1f1d', pie: '#3c4541' }],
 ];
+/* Clásico, Moderno y Universitario: vacío = colores del tema activo */
+const BASE_CAMPOS = [['principal', 'Color principal', 'Cabecera, títulos, franjas y pie de página'], ['secundario', 'Color secundario', 'Botones, enlaces y elementos interactivos'], ['acento', 'Color de acento', 'Detalles, líneas, etiquetas y cifras destacadas']];
+const BASE_PRESETS = [
+  ['FLV institucional', { principal: '#0c2a5b', secundario: '#1e5fc8', acento: '#f2b705' }],
+  ['Azul y oro', { principal: '#16449a', secundario: '#0c2a5b', acento: '#f2b705' }],
+  ['Marino y celeste', { principal: '#0c2a5b', secundario: '#1a6fc0', acento: '#5fb3f0' }],
+  ['Vino académico', { principal: '#5c1027', secundario: '#8a1538', acento: '#d9a441' }],
+  ['Verde institucional', { principal: '#0f3d2e', secundario: '#0f7a5c', acento: '#e0b13a' }],
+];
+const baseDef = t => ({ principal: t.navy, secundario: t.blue, acento: t.gold });
 /* diseños con colores configurables */
 const DCFG = {
+  'clasico': { campos: BASE_CAMPOS, presets: BASE_PRESETS, def: baseDef },
+  'moderno': { campos: BASE_CAMPOS, presets: BASE_PRESETS, def: baseDef },
+  'universitario': { campos: BASE_CAMPOS, presets: BASE_PRESETS, def: baseDef },
   'impacto': { campos: IMP_CAMPOS, presets: IMP_PRESETS, def: t => impDefaults('impacto', t) },
   'impacto-flv': { campos: IMP_CAMPOS, presets: IMP_PRESETS, def: t => impDefaults('impacto-flv', t) },
   'campus': { campos: CAM_CAMPOS, presets: CAM_PRESETS, def: () => ({ primario: '#d6173c', oscuro: '#111111', pie: '#4a4a4a' }) },
@@ -244,6 +257,14 @@ function impApplyColors(t) {
   if (!DCFG[key]) { if (st) st.textContent = ''; return; }
   if (!st) { st = document.createElement('style'); st.id = 'imp-vars'; document.head.appendChild(st); }
   const c = impColors(key, t); const on = dOn;
+  if (BASE_CAMPOS === DCFG[key].campos) {
+    const d = baseDef(t); if (c.principal === d.principal && c.secundario === d.secundario && c.acento === d.acento) { st.textContent = ''; return; }
+    const v = themeVars(Object.assign({}, t, { navy: c.principal, navy2: mix(c.principal, c.secundario, .35), blue: c.secundario, gold: c.acento }));
+    // Universitario calcula sus tonos a partir del tema: se recalculan con los colores elegidos.
+    if (key === 'universitario') Object.assign(v, { '--dk': 'color-mix(in srgb,var(--navy) 22%,#050608)', '--dk2': 'color-mix(in srgb,var(--navy) 62%,#050608)', '--ac': 'var(--gold)', '--ac2': 'var(--blue)' });
+    const sel = key === 'clasico' ? ':root:not([data-layout])' : `:root[data-layout="${key}"]`;
+    st.textContent = `${sel} body:not(.is-admin){${Object.entries(v).map(([k, x]) => `${k}:${x}`).join(';')}}`; return;
+  }
   if (key === 'campus') { const txt = (() => { let x = c.primario; for (let k = 0; k < 14 && contrast(x, '#ffffff') < 4.5; k++) x = mix(x, '#000000', .08); return x; })();
     st.textContent = `:root[data-layout="campus"] body:not(.is-admin){--kp:${c.primario};--kpo:${on(c.primario)};--kpd:${mix(c.primario, '#000000', .2)};--kpt:${txt};--kpl:${mix(c.primario, '#ffffff', .92)};--kk:${c.oscuro};--kko:${on(c.oscuro)};--kf:${c.pie};--kfo:${on(c.pie)}}`; return; }
   if (key === 'horizonte') { st.textContent = `:root[data-layout="horizonte"] body:not(.is-admin){--hp:${c.primario};--hpo:${on(c.primario)};--hpd:${mix(c.primario, '#000000', .28)};--hpl:${mix(c.primario, '#ffffff', .55)};--ha:${c.acento};--hao:${on(c.acento)};--hat:${(() => { if (contrast(c.acento, '#ffffff') >= 4.5) return c.acento; if (contrast(c.acento, '#ffffff') >= 3.2) { let x = c.acento; for (let k = 0; k < 8 && contrast(x, '#ffffff') < 4.5; k++) x = mix(x, '#000000', .06); return x; } let x = mix(c.primario, '#2f7cf6', .55); for (let k = 0; k < 12 && contrast(x, '#ffffff') < 4.5; k++) x = mix(x, '#000000', .08); return x; })()};--hf:${c.fondo}}`; return; }
@@ -252,7 +273,6 @@ function impApplyColors(t) {
 const DISENOS = [
   ['clasico', 'Clásico institucional', 'Diseño original del portal: cabecera institucional, carrusel y bloques en tarjetas.'],
   ['moderno', 'Moderno', 'Portada a pantalla completa, menú flotante con efecto vidrio, tarjetas amplias con esquinas redondeadas y sombras suaves.'],
-  ['editorial', 'Editorial', 'Estilo de revista digital: tipografía grande, líneas finas, fondo claro y la noticia principal destacada en grande.'],
   ['impacto', 'Impacto', 'Alto contraste en amarillo y negro: logotipo en bloque de color, portada a pantalla completa, títulos condensados en mayúsculas, mosaico de programas, recuadros de color y franja negra de logros. El menú principal no cambia.'],
   ['impacto-flv', 'Impacto FLV', 'La estructura de Impacto con los colores del FLV: logotipo en bloque dorado, franjas y pie en azul marino del escudo y botón «Postula» en azul. Los colores se pueden ajustar.'],
   ['campus', 'Campus', 'Portal de universidad con barra superior de color, menú en mayúsculas sobre la portada, títulos centrados subrayados, tarjetas de programas en capas de colores, botones flotantes «Postula», eventos y noticias en tarjetas y pie en dos bloques. Los colores se pueden ajustar.'],

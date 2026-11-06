@@ -17,6 +17,7 @@ final class PortalContent
         // Valores que el navegador espera en la configuración: se completan en el servidor para que ningún perfil
         // envíe cambios de configuración por el solo hecho de abrir el panel.
         if(isset($data['config']['mpv'])&&is_array($data['config']['mpv'])&&!isset($data['config']['mpv']['digitos']))$data['config']['mpv']['digitos']=6;
+        if(($data['config']['diseno']??null)==='editorial')$data['config']['diseno']='moderno';
         // Distrito y región de la institución (instalaciones anteriores): se toman de las dos últimas partes de la dirección.
         if(isset($data['config']['inst'])&&is_array($data['config']['inst'])&&!isset($data['config']['inst']['region'])){
             $parts=array_values(array_filter(array_map('trim',explode(',',(string)($data['config']['inst']['direccion']??''))),'strlen'));

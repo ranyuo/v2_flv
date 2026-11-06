@@ -2230,11 +2230,6 @@ tr.pz-bad td{background:var(--errbg)}
 .ds-moderno{position:relative}
 .ds-moderno .m-hero{border-radius:10px}
 .ds-moderno .m-cards b{border-radius:9px;border:0;box-shadow:0 3px 8px rgba(15,23,42,.14)}
-.ds-editorial{background:#fff;grid-template-rows:16px 1fr 30px}
-.ds-editorial .m-top{background:#fff;border-top:2px solid #111;border-bottom:1px solid #111;border-radius:0}
-.ds-editorial .m-hero{background:linear-gradient(90deg,#0c2a5b 0 42%,#8ea6c8 42%);border-radius:0}
-.ds-editorial .m-cards{grid-template-columns:2fr 1fr 1fr}
-.ds-editorial .m-cards b{border:1px solid #c9ced8;border-radius:0}
 .ds-universitario{background:#f4f5f7;grid-template-rows:12px 1fr 30px;position:relative}
 .ds-universitario .m-top{background:linear-gradient(90deg,#fff 0 18%,#0b0c10 18%);border-radius:0}
 .ds-universitario .m-hero{background:linear-gradient(90deg,#1f2a3d 0 40%,#7d8aa3);border-radius:0}
@@ -2282,7 +2277,7 @@ tr.pz-bad td{background:var(--errbg)}
 :root[data-layout="moderno"] body:not(.is-admin) .pcard img,:root[data-layout="moderno"] body:not(.is-admin) .ncard img{transition:transform .5s}
 :root[data-layout="moderno"] body:not(.is-admin) .pcard:hover img,:root[data-layout="moderno"] body:not(.is-admin) .ncard:hover img:not([data-fit="contain"]){transform:scale(1.05)}
 :root[data-layout="moderno"] body:not(.is-admin) .card .cb{padding:22px}
-:root[data-layout="moderno"] body:not(.is-admin) .ncard img,:root[data-layout="editorial"] body:not(.is-admin) .ncard img{height:auto}
+:root[data-layout="moderno"] body:not(.is-admin) .ncard img{height:auto}
 :root[data-layout="moderno"] body:not(.is-admin) .btn{border-radius:999px}
 :root[data-layout="moderno"] body:not(.is-admin) .stats{border-radius:28px;max-width:1208px;margin:0 auto;background:radial-gradient(circle at 15% 20%,rgba(255,255,255,.14),transparent 40%),linear-gradient(120deg,var(--navy),var(--blue))}
 :root[data-layout="moderno"] body:not(.is-admin) .stat b{font-size:48px}
@@ -2297,81 +2292,6 @@ tr.pz-bad td{background:var(--errbg)}
   :root[data-layout="moderno"] body:not(.is-admin) section.sec{padding:52px 0}
 }
 
-/* ===== Diseño «Editorial» ===== */
-:root[data-layout="editorial"] body:not(.is-admin){background:var(--card)}
-:root[data-layout="editorial"] body:not(.is-admin) :is(h1,h2,h3,.brand strong,.page-banner .ttl,.stat b){font-family:"Merriweather",Georgia,"Times New Roman",serif;letter-spacing:0}
-:root[data-layout="editorial"] body:not(.is-admin) .topbar{background:var(--card);color:var(--ink2);border-bottom:1px solid var(--line)}
-:root[data-layout="editorial"] body:not(.is-admin) .topbar a{color:var(--ink2)}
-:root[data-layout="editorial"] body:not(.is-admin) .topbar a:hover{color:var(--hc)}
-:root[data-layout="editorial"] body:not(.is-admin) .topbar svg{stroke:currentColor}
-:root[data-layout="editorial"] body:not(.is-admin) .h-search input{border-radius:0}
-:root[data-layout="editorial"] body:not(.is-admin) .h-search button{border-radius:0;background:var(--ink)}
-@media (min-width:901px){
-  :root[data-layout="editorial"] body:not(.is-admin) .site-header{border-bottom:0}
-  :root[data-layout="editorial"] body:not(.is-admin) .site-header .wrap{display:grid;grid-template-columns:1fr auto 1fr;padding-top:18px;padding-bottom:16px}
-  :root[data-layout="editorial"] body:not(.is-admin) .brand{grid-column:2;grid-row:1;flex-direction:column;text-align:center;gap:6px}
-  :root[data-layout="editorial"] body:not(.is-admin) .brand strong{font-size:30px}
-  :root[data-layout="editorial"] body:not(.is-admin) .h-search{grid-column:3;grid-row:1;justify-self:end;max-width:240px;width:100%}
-  :root[data-layout="editorial"] body:not(.is-admin) .h-slogan{grid-column:1;grid-row:1;justify-self:start;display:block;border-left:0;padding-left:0;max-width:180px;color:var(--ink2)}
-  :root[data-layout="editorial"] body:not(.is-admin) .mainnav{background:var(--card);border-top:1px solid var(--ink);border-bottom:3px double var(--ink);box-shadow:none}
-  :root[data-layout="editorial"] body:not(.is-admin) .mainnav>.wrap>ul{justify-content:center}
-  :root[data-layout="editorial"] body:not(.is-admin) .mainnav .top{color:var(--ink);text-transform:uppercase;letter-spacing:.8px;font-size:12px;padding:12px 10px}
-  :root[data-layout="editorial"] body:not(.is-admin) .mainnav .top:hover,:root[data-layout="editorial"] body:not(.is-admin) .mainnav li:focus-within>.top{background:none;color:var(--link)}
-  :root[data-layout="editorial"] body:not(.is-admin) .mainnav .top.active{background:none;color:var(--link);box-shadow:inset 0 -2px 0 var(--link)}
-  :root[data-layout="editorial"] body:not(.is-admin) .mainnav .home{background:none}
-  :root[data-layout="editorial"] body:not(.is-admin) .mainnav .top svg{stroke:currentColor}
-  :root[data-layout="editorial"] body:not(.is-admin) .sub{border-radius:0;border:1px solid var(--ink)}
-  :root[data-layout="editorial"] body:not(.is-admin) .slide{background:rgb(var(--ov))}
-  :root[data-layout="editorial"] body:not(.is-admin) .slide img{position:absolute;right:0;top:0;width:58%}
-  :root[data-layout="editorial"] body:not(.is-admin) .slide::after{background:linear-gradient(90deg,rgb(var(--ov)) 0%,rgb(var(--ov)) 42%,rgba(var(--ov),0) 62%)}
-  :root[data-layout="editorial"] body:not(.is-admin) .slide .cap h2{max-width:460px;font-size:38px;line-height:1.2}
-  :root[data-layout="editorial"] body:not(.is-admin) .slide .cap p{max-width:420px}
-}
-:root[data-layout="editorial"] body:not(.is-admin) .hero{height:500px}
-:root[data-layout="editorial"] body:not(.is-admin) .hero-arrow{border-radius:0}
-:root[data-layout="editorial"] body:not(.is-admin) .quick{margin-top:0;padding:26px 16px;border-bottom:1px solid var(--line)}
-:root[data-layout="editorial"] body:not(.is-admin) .quick .grid{gap:0}
-:root[data-layout="editorial"] body:not(.is-admin) .quick a{background:none;box-shadow:none;border:0;border-left:1px solid var(--line);border-radius:0;padding:10px 18px}
-:root[data-layout="editorial"] body:not(.is-admin) .quick a:hover{transform:none;background:var(--bg)}
-:root[data-layout="editorial"] body:not(.is-admin) .quick .ic{background:none;border:1px solid var(--ink);border-radius:50%;width:46px;height:46px}
-:root[data-layout="editorial"] body:not(.is-admin) .quick .ic svg{stroke:var(--ink)}
-:root[data-layout="editorial"] body:not(.is-admin) section.sec.alt{background:var(--bg)}
-:root[data-layout="editorial"] body:not(.is-admin) .sec-h{text-align:left;max-width:none;border-top:2px solid var(--ink);padding-top:14px;margin-bottom:26px;display:grid;grid-template-columns:auto 1fr;column-gap:18px;align-items:baseline}
-:root[data-layout="editorial"] body:not(.is-admin) .sec-h .kicker{grid-column:1;font-size:11.5px;letter-spacing:2px;color:var(--link)}
-:root[data-layout="editorial"] body:not(.is-admin) .sec-h h2{grid-column:2;font-size:30px;margin:0}
-:root[data-layout="editorial"] body:not(.is-admin) .sec-h p{grid-column:1/-1;margin:6px 0 0}
-:root[data-layout="editorial"] body:not(.is-admin) .card{border-radius:0;box-shadow:none;border:1px solid var(--line)}
-:root[data-layout="editorial"] body:not(.is-admin) .pcard:hover,:root[data-layout="editorial"] body:not(.is-admin) .ncard:hover{transform:none;box-shadow:none;border-color:var(--ink)}
-:root[data-layout="editorial"] body:not(.is-admin) .btn{border-radius:0}
-:root[data-layout="editorial"] body:not(.is-admin) .badge{border-radius:0;text-transform:uppercase;letter-spacing:1px;font-size:10.5px}
-:root[data-layout="editorial"] body:not(.is-admin) .more{text-transform:uppercase;letter-spacing:1px;font-size:12px}
-@media (min-width:901px){
-  :root[data-layout="editorial"] body:not(.is-admin) .grid.g3>.ncard:first-child{grid-column:span 2;grid-row:span 2}
-  :root[data-layout="editorial"] body:not(.is-admin) .grid.g3>.ncard:first-child .img{flex:1 1 auto;min-height:280px}
-  :root[data-layout="editorial"] body:not(.is-admin) .grid.g3>.ncard:first-child img{position:absolute;inset:0;height:100%!important;aspect-ratio:auto}
-  :root[data-layout="editorial"] body:not(.is-admin) .grid.g3>.ncard:first-child .cb{flex:none}
-  :root[data-layout="editorial"] body:not(.is-admin) .grid.g3>.ncard:first-child h3{font-size:26px;line-height:1.25}
-  :root[data-layout="editorial"] body:not(.is-admin) .grid.g3>.ncard:first-child p{font-size:16px}
-}
-:root[data-layout="editorial"] body:not(.is-admin) .stats{background:var(--card);color:var(--ink);border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
-:root[data-layout="editorial"] body:not(.is-admin) .stat{border-left:1px solid var(--line)}
-:root[data-layout="editorial"] body:not(.is-admin) .stat:first-child{border-left:0}
-:root[data-layout="editorial"] body:not(.is-admin) .stat b{color:var(--hc)}
-:root[data-layout="editorial"] body:not(.is-admin) .stat small{color:var(--muted)}
-:root[data-layout="editorial"] body:not(.is-admin) .stat .st-ic{display:none}
-:root[data-layout="editorial"] body:not(.is-admin) .page-banner{background:var(--card);color:var(--ink);min-height:130px;border-bottom:1px solid var(--line)}
-:root[data-layout="editorial"] body:not(.is-admin) .page-banner img.bg{display:none}
-:root[data-layout="editorial"] body:not(.is-admin) .page-banner::before{display:none}
-:root[data-layout="editorial"] body:not(.is-admin) .page-banner .ttl{color:var(--hc)}
-:root[data-layout="editorial"] body:not(.is-admin) .page-banner .kicker{color:var(--link)}
-:root[data-layout="editorial"] body:not(.is-admin) .page-banner p{color:var(--ink2)}
-:root[data-layout="editorial"] body:not(.is-admin) .person img,:root[data-layout="editorial"] body:not(.is-admin) .ngal-t{border-radius:0}
-:root[data-layout="editorial"] body:not(.is-admin) .pcar-b{border-radius:0;border-color:var(--ink);box-shadow:none}
-@media (max-width:640px){
-  :root[data-layout="editorial"] body:not(.is-admin) .quick a{border-left:0;border-top:1px solid var(--line)}
-  :root[data-layout="editorial"] body:not(.is-admin) .sec-h{grid-template-columns:1fr}
-  :root[data-layout="editorial"] body:not(.is-admin) .sec-h h2{grid-column:1}
-}
 /* ===== Diseño «Universitario» ===== */
 :root[data-layout="universitario"]{--dk:color-mix(in srgb,var(--navy) 22%,#050608);--dk2:color-mix(in srgb,var(--navy) 62%,#050608);--ac:var(--gold);--ac2:var(--blue);--uline:rgba(255,255,255,.05)}
 :root[data-layout="universitario"] body:not(.is-admin){background:var(--bg)}
