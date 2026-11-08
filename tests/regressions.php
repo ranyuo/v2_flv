@@ -15,6 +15,11 @@ putenv('PORTAL_CONFIG_FILE='.$path);
 date_default_timezone_set('America/Lima');session_start();$_SESSION['csrf']=bin2hex(random_bytes(32));$_SERVER['REMOTE_ADDR']='127.0.0.99';
 $app=new PortalApp($config);$password=bin2hex(random_bytes(12));
 $app->install(['install_key'=>$config['install_key'],'username'=>'qaadmin','name'=>'QA','email'=>'qa@example.test','password'=>$password]);
+if($accountPath=getenv('PORTAL_TEST_ACCOUNT_FILE')){
+    $mask=umask(0077);$stream=fopen($accountPath,'x');umask($mask);
+    if(!$stream)throw new RuntimeException('Refusing to overwrite the browser test credential file.');
+    fwrite($stream,json_encode(['username'=>'qaadmin','password'=>$password],JSON_THROW_ON_ERROR));fclose($stream);
+}
 $passed=0;
 function verify(bool $ok,string $name): void {global $passed;if(!$ok)throw new RuntimeException('FAIL: '.$name);$passed++;echo "PASS: $name\n";}
 function rejects(callable $f,int $status,string $name): void {try{$f();}catch(PortalError $e){verify($e->status===$status,$name);return;}throw new RuntimeException('FAIL: '.$name.' was accepted');}
@@ -37,7 +42,7 @@ foreach(['uploads-anon'=>20,'uploads-anon-mb'=>150] as $action=>$limit){
 }
 $app->login(['username'=>'qaadmin','password'=>$password]);
 function saveRows(PortalApp $app,string $key,array $rows): array {$s=$app->bootstrap();return $app->save(['revision'=>$s['revision'],'patch'=>[['path'=>['academico',$key],'kind'=>'value','before'=>$s['data']['academico'][$key],'after'=>$rows]]]);}
-$student=['id'=>1,'dni'=>'00000001','nom'=>'QA Estudiante','prog'=>1,'periodo'=>'2026-II','ciclo'=>1,'sec'=>'A','turno'=>'Mañana','estado'=>'Regular'];saveRows($app,'estudiantes',[$student]);
+$student=['id'=>1,'dni'=>'00000001','nom'=>'QA Estudiante','prog'=>1,'periodo'=>'2026-II','ciclo'=>'I','sec'=>'A','turno'=>'Mañana','estado'=>'Regular'];saveRows($app,'estudiantes',[$student]);
 $grade=['id'=>1,'est'=>1,'ud'=>'Matemática Aplicada','periodo'=>'2026-II','nota'=>15];saveRows($app,'notas',[$grade]);verify(count($app->bootstrap()['data']['academico']['notas'])===1,'Valid grade accepted');
 $bad=$grade;$bad['periodo']='periodo-invalido';$revision=$app->bootstrap()['revision'];rejects(fn()=>saveRows($app,'notas',[$bad]),422,'Invalid grade period rejected');verify($app->bootstrap()['revision']===$revision,'Invalid grade preserves revision');
 $duplicate=$grade;$duplicate['id']=2;$duplicate['ud']='  MATEMATICA   APLICADA  ';rejects(fn()=>saveRows($app,'notas',[$grade,$duplicate]),422,'Normalized duplicate grade rejected');

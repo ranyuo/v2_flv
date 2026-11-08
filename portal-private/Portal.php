@@ -341,7 +341,7 @@ final class PortalApp
             $visible=PortalPolicy::project($previous,$user,$this->publicData($previous));$visible['usuarios']=$this->visibleAccounts($user,$previous);
             $incoming=isset($input['patch'])?PortalPatch::apply($visible,$input['patch']):$input['data'];
             $data=PortalPolicy::apply($previous,$visible,$incoming,$user);
-            PortalRules::structure($data);$data=PortalRules::scrub($data);
+            PortalRules::structure($data);PortalRules::stateShape($previous,$data);$data=PortalRules::scrub($data);
             $ops=$input['accounts']??[];if(!is_array($ops)||count($ops)>100)throw new PortalError(422,'Operaciones de cuentas no válidas.');
             foreach($ops as $operation){if(!is_array($operation))throw new PortalError(422,'Cuenta no válida.');$this->accountOperation($operation);}
             $aliases=[];$data=PortalFiles::persist($this,$data,$aliases,0,$previous);
@@ -691,14 +691,7 @@ final class PortalApp
         if (!preg_match('/^data:([^;,]+);base64,(.*)$/s', $valid['data'], $match)) throw new PortalError(422, 'Adjunto no válido.');
         $bytes = base64_decode($match[2], true);
         if ($bytes === false || strlen($bytes) > 40 * 1024 * 1024) throw new PortalError(422, 'Adjunto no válido o demasiado grande.');
-        $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
-        $extensions = ['application/pdf' => ['pdf'], 'image/jpeg' => ['jpg', 'jpeg'], 'image/png' => ['png'],
-            'application/zip' => ['docx', 'xlsx', 'pptx'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => ['docx'],
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => ['xlsx'],
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation' => ['pptx']];
-        if (!isset($extensions[$mime]) || !in_array(strtolower(pathinfo($valid['original'], PATHINFO_EXTENSION)), $extensions[$mime], true)) {
-            throw new PortalError(422, 'El contenido del adjunto no coincide con un formato permitido.');
-        }
+        // MIME y extensión se validan en PortalFiles::store, igual que multipart.
         $this->rate('uploads',30,60);
         $this->anonymousUploadQuota(strlen($bytes));
         return PortalFiles::store($this, $valid['original'], $bytes);

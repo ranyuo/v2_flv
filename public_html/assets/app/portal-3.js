@@ -519,7 +519,7 @@ function bindLr2(q0) {
     if (!v.fechaHecho) er.fechaHecho = 'Indique la fecha del hecho.'; else if (v.fechaHecho > ymd(new Date())) er.fechaHecho = 'La fecha no puede ser futura.';
     if (String(v.descripcion).trim().length < 20) er.descripcion = 'Describa los hechos (mínimo 20 caracteres).'; else if (v.descripcion.length > lim) er.descripcion = `Máximo ${lim} caracteres.`;
     if (String(v.pedido).trim().length < 5) er.pedido = 'Indique su pedido concreto.';
-    const file = f.adjunto.files[0]; if (file) { const fe = checkUpload(file, ['pdf', 'jpg', 'jpeg', 'png'], 5); if (fe) er.adjunto = fe; }
+    const file = f.adjunto.files[0]; if (file) { const fe = checkUpload(file, ['pdf', 'jpg', 'jpeg', 'png'], 10); if (fe) er.adjunto = fe; }
     if (!f.declaro.checked) er.declaro = 'Debe declarar que la información es verdadera.';
     if (!f.acepto.checked) er.acepto = 'Debe aceptar la política de privacidad.';
     const cap = checkCaptcha(f, 'cap-lr2'); if (cap) er.captcha = cap;
