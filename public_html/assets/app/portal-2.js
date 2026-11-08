@@ -273,6 +273,7 @@ function impApplyColors(t) {
 const DISENOS = [
   ['clasico', 'Clásico institucional', 'Diseño original del portal: cabecera institucional, carrusel y bloques en tarjetas.'],
   ['moderno', 'Moderno', 'Portada a pantalla completa, menú flotante con efecto vidrio, tarjetas amplias con esquinas redondeadas y sombras suaves.'],
+  ['editorial', 'Editorial', 'Estilo de revista digital: tipografía grande, líneas finas, fondo claro y la noticia principal destacada en grande.'],
   ['impacto', 'Impacto', 'Alto contraste en amarillo y negro: logotipo en bloque de color, portada a pantalla completa, títulos condensados en mayúsculas, mosaico de programas, recuadros de color y franja negra de logros. El menú principal no cambia.'],
   ['impacto-flv', 'Impacto FLV', 'La estructura de Impacto con los colores del FLV: logotipo en bloque dorado, franjas y pie en azul marino del escudo y botón «Postula» en azul. Los colores se pueden ajustar.'],
   ['campus', 'Campus', 'Portal de universidad con barra superior de color, menú en mayúsculas sobre la portada, títulos centrados subrayados, tarjetas de programas en capas de colores, botones flotantes «Postula», eventos y noticias en tarjetas y pie en dos bloques. Los colores se pueden ajustar.'],

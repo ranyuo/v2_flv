@@ -414,7 +414,7 @@ final class PortalApp
         if(!is_array($file)||($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK||!is_uploaded_file($file['tmp_name']))throw new PortalError(422,'No se pudo recibir el archivo. Revisa los límites de tamaño de PHP.');
         if((int)$file['size']>40*1024*1024)throw new PortalError(413,'Máximo 40 MB por archivo.');
         // Sin sesión: tope por IP de archivos y de megas por hora, para que nadie llene el almacenamiento del hosting.
-        if(!$this->user()){$this->rate('uploads-anon',20,3600);$this->rate('uploads-anon-mb',150,3600,(int)ceil(((int)$file['size'])/1048576));}
+        $this->anonymousUploadQuota((int)$file['size']);
         return ['file'=>PortalFiles::store($this,$file['name'],file_get_contents($file['tmp_name']))];
     }
     public function registerCompany(array $input): array
@@ -539,21 +539,21 @@ final class PortalApp
         }
         $this->submissionProof($type,$input);
         $record = self::validate($input['record'], self::RULES[$type]);
-        if (!empty($record['archivos'])) {
-            $record['archivos'] = array_map($this->validateFile(...), $record['archivos']);
-        }
-        if (!empty($record['adjunto'])) $record['adjunto'] = $this->validateFile($record['adjunto']);
-        if (array_sum(array_column($record['archivos'] ?? [], 'size')) + ($record['adjunto']['size'] ?? 0) > 40 * 1024 * 1024) {
-            throw new PortalError(422, 'Los adjuntos no pueden superar 40 MB en total.');
-        }
         $result = $this->transaction(function () use ($record, $type, $input) {
             $state = $this->state(true);
-            $data = json_decode($state['data'], true, flags: JSON_THROW_ON_ERROR);
-            $record=$this->formDomain($type,$record,$data);
+            $data = json_decode($state['data'], true, flags:JSON_THROW_ON_ERROR);
             $id = hash('sha256', session_id().'|'.$type.'|'.$input['idempotency_key']);
             foreach ($data[$type] ?? [] as $existing) {
                 if (($existing['id'] ?? null) === $id) { $_SESSION['challenges'][$input['proof']['challenge_id']]['used_key']=$input['idempotency_key'];return ['record' => $existing, 'status' => 200,'revision'=>(int)$state['revision'],'counters'=>$this->user()?($data['config']['contadores']??[]):null]; }
             }
+            // Los adjuntos nuevos se confirman o revierten junto con el trámite.
+            // Un reintento no vuelve a almacenarlos ni consume otra cuota de subida.
+            if (!empty($record['archivos'])) $record['archivos'] = array_map($this->validateFile(...), $record['archivos']);
+            if (!empty($record['adjunto'])) $record['adjunto'] = $this->validateFile($record['adjunto']);
+            if (array_sum(array_column($record['archivos'] ?? [], 'size')) + ($record['adjunto']['size'] ?? 0) > 40 * 1024 * 1024) {
+                throw new PortalError(422, 'Los adjuntos no pueden superar 40 MB en total.');
+            }
+            $record=$this->formDomain($type,$record,$data);
             $record['id'] = $id;
             $record['fecha'] = date(DATE_ATOM);
             $record['estado'] = $type === 'mensajes' ? 'Nuevo' : 'Recibido';
@@ -675,6 +675,14 @@ final class PortalApp
         return $date;
     }
 
+    /** Cuota compartida por subidas multipart y adjuntos base64. */
+    private function anonymousUploadQuota(int $size): void
+    {
+        if ($this->user()) return;
+        $this->rate('uploads-anon',20,3600);
+        $this->rate('uploads-anon-mb',150,3600,(int)ceil($size/1048576));
+    }
+
     private function validateFile(mixed $file): array
     {
         if (!is_array($file)) throw new PortalError(422, 'Adjunto no válido.');
@@ -691,6 +699,8 @@ final class PortalApp
         if (!isset($extensions[$mime]) || !in_array(strtolower(pathinfo($valid['original'], PATHINFO_EXTENSION)), $extensions[$mime], true)) {
             throw new PortalError(422, 'El contenido del adjunto no coincide con un formato permitido.');
         }
+        $this->rate('uploads',30,60);
+        $this->anonymousUploadQuota(strlen($bytes));
         return PortalFiles::store($this, $valid['original'], $bytes);
     }
 }

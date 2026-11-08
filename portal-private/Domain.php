@@ -88,7 +88,15 @@ final class PortalDomain
             if($s['prog']!==$m['prog']||$r['fecha']>date('Y-m-d'))throw new PortalError(422,'Módulo de otro programa o fecha futura.');
             foreach($a['certs'] as $other)if(($r['estadoDoc']??'Válido')!=='Anulado'&&($other['estadoDoc']??'Válido')!=='Anulado'&&$other['id']!==$r['id']&&(($other['est']===$r['est']&&$other['mod']===$r['mod'])||$other['num']===$r['num']))throw new PortalError(422,'Certificación duplicada.');
         }
-        foreach(self::changedRows($o['notas'],$a['notas'],'academico.notas') as $r){self::required($r,['est','ud','periodo','nota'],'Nota');self::foreign($a['estudiantes'],$r['est'],'Alumno');if(!is_numeric($r['nota'])||$r['nota']<0||$r['nota']>20)throw new PortalError(422,'La nota debe estar entre 0 y 20.');}
+        $gradeKey=fn(array $r)=>json_encode([(int)($r['est']??0),$r['periodo']??null,is_string($r['ud']??null)?PortalRules::normal($r['ud']):null],JSON_THROW_ON_ERROR);
+        $gradeCounts=[];foreach($a['notas'] as $note){$key=$gradeKey($note);$gradeCounts[$key]=($gradeCounts[$key]??0)+1;}
+        foreach(self::changedRows($o['notas'],$a['notas'],'academico.notas') as $r){
+            self::required($r,['est','ud','periodo','nota'],'Nota');self::foreign($a['estudiantes'],$r['est'],'Alumno');
+            if(!is_string($r['periodo'])||!preg_match('/^20[0-9]{2}-(?:I|II)$/D',$r['periodo']))throw new PortalError(422,'El periodo de la nota debe tener el formato 2026-I o 2026-II.');
+            if(!is_string($r['ud'])||PortalRules::normal($r['ud'])==='')throw new PortalError(422,'Indica la unidad didáctica de la nota.');
+            if(!is_numeric($r['nota'])||$r['nota']<0||$r['nota']>20)throw new PortalError(422,'La nota debe estar entre 0 y 20.');
+            if($gradeCounts[$gradeKey($r)]>1)throw new PortalError(422,'Ya existe una nota para ese alumno, unidad didáctica y periodo.');
+        }
         foreach(self::changedRows($o['titulos'],$a['titulos'],'academico.titulos') as $r){
             self::required($r,['est','culm','tit','cod','resol'],'Título');$student=self::foreign($a['estudiantes'],$r['est'],'Alumno');
             if(!in_array($student['estado'],['Egresado','Titulado'],true)||$r['tit']<$r['culm'])throw new PortalError(422,'El título requiere un egresado y fechas válidas.');

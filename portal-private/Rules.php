@@ -139,7 +139,7 @@ final class PortalRules
             if(!in_array($home['noticiasVista']??'',['','tarjetas','carrusel'],true))throw new PortalError(422,'La vista de las noticias no es válida.');
             if(count($home['beneficios'])>8&&!PortalPolicy::equal($old['config']['home']['beneficios']??null,$home['beneficios']))throw new PortalError(422,'La portada admite como máximo ocho beneficios.');
         }
-        if($changed('diseno')&&!in_array($new['config']['diseno']??null,['clasico','moderno','universitario','impacto','impacto-flv','horizonte','campus'],true))throw new PortalError(422,'El diseño del portal no es válido.');
+        if($changed('diseno')&&!in_array($new['config']['diseno']??null,['clasico','moderno','universitario','editorial','impacto','impacto-flv','horizonte','campus'],true))throw new PortalError(422,'El diseño del portal no es válido.');
         if($changed('disenoColores')){
             $colors=$new['config']['disenoColores']??null;if(!is_array($colors))throw new PortalError(422,'Los colores del diseño no son válidos.');
             foreach($colors as $design=>$values){
