@@ -99,4 +99,24 @@ $app->save($patchFor($notes[0],$firstEdit));$app->save($patchFor($notes[1],$seco
 $current=$app->bootstrap()['data']['academico']['notas'];verify($current[0]['nota']===17&&$current[1]['nota']===18,'Independent stale row edits merge without lost updates');
 $conflict=$notes[0];$conflict['nota']=19;rejects(fn()=>$app->save($patchFor($notes[0],$conflict)),409,'Same stale row edit rejected with conflict');
 verify($app->bootstrap()['data']['academico']['notas'][0]['nota']===17,'Conflicting edit does not overwrite committed grade');
+// Audit retention: only rows older than the configured window are removed, at most once per day.
+$db=$app->db();$db->exec("DELETE FROM pisco_settings WHERE setting_key='audit_purged_day'");
+$insertAudit=$db->prepare("INSERT INTO pisco_audit (occurred_at,user_id,username,role,action,entity,record_key,details) VALUES (?,NULL,'qa','publico','QA retention','QA','',?)");
+$now=new DateTimeImmutable('2026-11-09 12:00:00');
+foreach(['2024-11-08 11:59:59','2024-11-09 12:00:01','2026-11-01 00:00:00'] as $stamp)$insertAudit->execute([$stamp,'{}']);
+$retained=fn()=>$db->query("SELECT occurred_at FROM pisco_audit WHERE action='QA retention' ORDER BY occurred_at")->fetchAll(PDO::FETCH_COLUMN);
+$beforePurge=(int)$db->query('SELECT COUNT(*) FROM pisco_audit')->fetchColumn();
+verify(PortalAudit::purge($app,$now)>=1,'Audit purge removes rows older than 24 months');
+verify(count($retained())===2&&str_starts_with($retained()[0],'2024-11-09'),'Audit purge keeps rows inside the retention window');
+verify((int)$db->query("SELECT COUNT(*) FROM pisco_audit WHERE action='Depurar auditoría'")->fetchColumn()===1,'Audit purge records its own execution');
+$insertAudit->execute(['2020-01-01 00:00:00','{}']);
+verify(PortalAudit::purge($app,$now)===null&&count($retained())===3,'Audit purge runs at most once per day');
+verify(PortalAudit::purge($app,$now->modify('+1 day'))>=2&&$retained()===['2026-11-01 00:00:00.000000'],'Audit purge runs again the next day with a moving cutoff');
+verify((int)$db->query('SELECT COUNT(*) FROM pisco_audit')->fetchColumn()<=$beforePurge+1,'Audit purge does not grow the table');
+foreach([[0,null],[3,6],[36,36]] as [$months,$expected]){
+    $config=require getenv('PORTAL_TEST_CONFIG_FILE');$probe=new PortalApp([...$config,'audit_retention_months'=>$months]);
+    if($expected===null)verify(PortalAudit::purge($probe,$now->modify('+5 days'))===null,'Audit retention 0 keeps everything');
+    else verify($probe->auditRetentionMonths()===$expected,"Audit retention $months months resolves to $expected");
+}
+rejects(fn()=>(new PortalApp(['audit_retention_months'=>'24']))->auditRetentionMonths(),503,'Non-integer audit retention rejected');
 echo "$passed total checks passed.\n";ob_end_flush();

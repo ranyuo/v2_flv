@@ -62,6 +62,13 @@ final class PortalApp
 
     public function __construct(private readonly array $config,private readonly ?string $configFile=null) {}
 
+    /** Meses que se conserva la auditoría del servidor ('audit_retention_months'; 0 = sin límite). */
+    public function auditRetentionMonths(): int
+    {
+        $months=$this->config['audit_retention_months']??24;
+        if(!is_int($months)||$months<0)throw new PortalError(503,'audit_retention_months debe ser un entero mayor o igual a 0.');
+        return $months===0?0:max(6,$months);
+    }
     private function smtpSettings(): SmtpSettings
     {return new SmtpSettings($this->config,$this->configFile);}
 
